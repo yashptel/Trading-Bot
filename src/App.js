@@ -45,24 +45,26 @@ const App = () => {
 
   const calc = () => {
     let temp = [];
+    let tempAcc = acc;
     for (let i = 0; i < iteration; i++) {
-      const betAmount = (acc * bet) / 100.0;
+      const betAmount = (tempAcc * bet) / 100.0;
       const win = play(chance);
       const winLoss = win ? "Won" : "Lost";
       const Profit = win ? betAmount * rr : -1.0 * betAmount;
 
-      console.log(betAmount, win, winLoss, Profit, acc);
+      console.log(betAmount, win, winLoss, Profit, tempAcc);
       temp.push(
         <tr key={i}>
           <td>{i + 1}</td>
-          <td>{betAmount}</td>
+          <td>{betAmount.toFixed(2)}</td>
           <td>{winLoss}</td>
-          <td>{Profit}</td>
-          <td>{parseFloat(acc) + parseFloat(Profit)}</td>
+          <td>{Profit.toFixed(2)}</td>
+          <td>{(parseFloat(tempAcc) + parseFloat(Profit)).toFixed(2)}</td>
         </tr>
       );
-      setAcc(parseFloat(acc) + parseFloat(Profit));
+      tempAcc = parseFloat(tempAcc) + parseFloat(Profit);
     }
+    setAcc(tempAcc);
     setTable(temp);
   };
 
@@ -170,6 +172,7 @@ const App = () => {
       <button
         className="flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-2 md:text-lg md:px-6"
         type="reset"
+        onClick={() => setTable()}
       >
         Reset
       </button>
