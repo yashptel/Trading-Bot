@@ -57,7 +57,6 @@ const App = () => {
       const betAmount = (tempAcc * bet) / 100.0;
       const win = play(chance);
       const winLoss = win ? "Won" : "Lost";
-      const winLossColor = win ? "green" : "red";
       const Profit = win ? betAmount * rr : -1.0 * betAmount;
 
       console.log(betAmount, win, winLoss, Profit, tempAcc);
@@ -71,9 +70,12 @@ const App = () => {
           {/* <td>{winLoss}</td> */}
           <td className="px-6 py-4  whitespace-nowrap flex justify-center">
             <span
-              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-sm bg-${winLossColor}-100 text-${winLossColor}-800`}
+              className={
+                win
+                  ? `px-2 inline-flex text-xs leading-5 font-semibold rounded-sm bg-green-100 text-green-800`
+                  : `px-2 inline-flex text-xs leading-5 font-semibold rounded-sm bg-red-100 text-red-800`
+              }
             >
-              {/* <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"> */}
               {winLoss}
             </span>
           </td>
