@@ -15,7 +15,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "craco build",
+    "build": "craco build --no-optional --no-shrinkwrap --no-package-lock",
     "test": "craco test",
     "eject": "react-scripts eject"
   },
@@ -41,5 +41,13 @@
     "autoprefixer": "^9.8.6",
     "postcss": "^7.0.36",
     "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.2.7"
-  }
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "arch": [
+    "any",
+    "x64"
+  ]
 }
