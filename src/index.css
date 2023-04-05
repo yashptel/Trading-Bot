@@ -1,5 +1,29 @@
 @tailwind base;
-
 @tailwind components;
-
 @tailwind utilities;
+
+@layer base {
+
+  input,
+  textarea,
+  a {
+    @apply transition-all;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  .disable-highlight {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media screen and (max-width: 342px) {
+    .hide-narrow-screen {
+      display: none !important;
+    }
+  }
+}
