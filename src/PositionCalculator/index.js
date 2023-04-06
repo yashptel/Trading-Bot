@@ -43,30 +43,55 @@ const PositionCalculator = () => {
     setFilteredTradingPairs(res);
   }, [searchTerm, tradingPairs]);
 
+  // useEffect(() => {
+  //   const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
+
+  //   socket.onopen = () => {
+  //     console.log('WebSocket Client Connected');
+  //     socket.send(JSON.stringify({
+  //       method: 'SUBSCRIBE',
+  //       params: [
+  //         `${_.toLower(selectedTradingPair + 'usdt')}@ticker`
+  //       ],
+  //       id: 1
+  //     }));
+  //   };
+
+  //   socket.onmessage = event => {
+  //     const data = JSON.parse(event.data);
+  //     setLastPrice(data.c);
+  //   };
+  //   return () => {
+  //     socket.close();
+  //   };
+  // }, [selectedTradingPair]);
+
+
   useEffect(() => {
-    const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
+    const socket = new WebSocket(`wss://contract.mexc.com/ws`);
 
     socket.onopen = () => {
-      console.log('WebSocket Client Connected');
+      console.log('WebSocket Client Connected => MEXC');
       socket.send(JSON.stringify({
-        method: 'SUBSCRIBE',
-        params: [
-          `${_.toLower(selectedTradingPair + 'usdt')}@ticker`
-        ],
-        id: 1
+
+        "method": "sub.ticker",
+        "param": {
+          symbol: _.toUpper(selectedTradingPair + '_USDT')
+        }
       }));
     };
 
     socket.onmessage = event => {
       const data = JSON.parse(event.data);
-      console.log(data);
-      setLastPrice(data.c);
-    };
+      const price = _.get(data, 'data.lastPrice', 0);
+      setLastPrice(price);
+    }
+
     return () => {
       socket.close();
-    };
-  }, [selectedTradingPair]);
+    }
 
+  }, [selectedTradingPair])
 
 
   return (
