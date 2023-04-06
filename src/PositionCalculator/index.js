@@ -73,16 +73,24 @@ const PositionCalculator = () => {
     socket.onopen = () => {
       console.log('WebSocket Client Connected => MEXC');
       socket.send(JSON.stringify({
-
         "method": "sub.ticker",
         "param": {
           symbol: _.toUpper(selectedTradingPair + '_USDT')
         }
       }));
+
+      setInterval(() => {
+        socket.send(JSON.stringify({
+          "method": "ping",
+        }));
+      }, 10000);
     };
 
     socket.onmessage = event => {
       const data = JSON.parse(event.data);
+      const channel = _.get(data, 'channel', '');
+      if (channel !== 'push.ticker') return;
+
       const price = _.get(data, 'data.lastPrice', 0);
       setLastPrice(price);
     }
