@@ -5,7 +5,7 @@ import "./styles.css";
 
 function NotFound() {
   return (
-    <div className="flex items-center justify-center w-full mt-auto md:mb-8 flex-col text-center 2xl:text-left 2xl:flex-row">
+    <div className="flex items-center justify-center w-full min-h-screen  md:mb-8 flex-col text-center 2xl:text-left 2xl:flex-row">
       <Helmet
         title={`404 - Page not found | ${COMPANY_NAME}`}
         meta={[
