@@ -143,6 +143,8 @@ const PositionCalculator = () => {
                       <li key={pair.pair} onClick={
                         () => {
                           setSelectedTradingPair(pair.baseAsset);
+                          const el = document.getElementById('dropdownSearchButton');
+                          el && el.click();
                         }
                       }>
                         <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
