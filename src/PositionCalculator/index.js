@@ -12,6 +12,16 @@ const PositionCalculator = () => {
   const [stopLoss, setStopLoss] = useState(0);
   const [lossPerTrade, setLossPerTrade] = useState(0);
   const [positionSize, setPositionSize] = useState(0);
+
+  const handleInputChangeOnlyNumbers = (event, setFn) => {
+    const value = event.target.value;
+    const valid = /^\d*\.?\d*$/.test(value);
+    if (valid) {
+      /^0\d/.test(value) ? setFn(_.replace(value, /^0/, '')) : setFn(value || 0);
+    }
+  };
+
+
   useEffect(() => {
     axios
       .get('https://dapi.binance.com/dapi/v1/exchangeInfo')
@@ -159,21 +169,15 @@ const PositionCalculator = () => {
               </div>
               <div>
                 <label htmlFor="stopLoss" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Stop Loss</label>
-                <input type="text" name="stopLoss" id="stopLoss" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" required="" value={stopLoss} onChange={(e) => {
-                  const val = _.toNumber(e.target.value || 0);
-                  !_.isNaN(val) && setStopLoss(val);
-                }}></input>
+                <input type="text" name="stopLoss" id="stopLoss" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" required="" value={stopLoss} onChange={e => handleInputChangeOnlyNumbers(e, setStopLoss)}></input>
               </div>
               <div>
                 <label htmlFor="lossPerTrade" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Loss Per Trade</label>
-                <input type="text" name="lossPerTrade" id="lossPerTrade" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lossPerTrade || 0} prefix="$" onChange={e => {
-                  const val = _.toNumber(e.target.value || 0);
-                  !_.isNaN(val) && setLossPerTrade(val);
-                }}></input>
+                <input type="text" name="lossPerTrade" id="lossPerTrade" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lossPerTrade} prefix="$" onChange={e => handleInputChangeOnlyNumbers(e, setLossPerTrade)}></input>
               </div>
 
               <div class="relative">
-                <label htmlFor="positionSize" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Loss Per Trade</label>
+                <label htmlFor="positionSize" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Position Size</label>
                 <input type="text" id="positionSize" class="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={positionSize}></input>
                 <button type="button" class="text-white absolute right-1 bottom-[0.16rem] bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" onClick={(e) => {
                   e.preventDefault();
