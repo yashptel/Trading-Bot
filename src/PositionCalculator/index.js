@@ -22,6 +22,33 @@ const PositionCalculator = () => {
     }
   };
 
+  async function copyToClipboard(textToCopy) {
+    // Navigator clipboard api needs a secure context (https)
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(textToCopy);
+    } else {
+      // Use the 'out of viewport hidden text area' trick
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+
+      // Move textarea out of the viewport so it's not visible
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+
+      document.body.prepend(textArea);
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error(error);
+      } finally {
+        textArea.remove();
+      }
+
+    }
+  }
+
 
   useEffect(() => {
     axios
@@ -167,7 +194,7 @@ const PositionCalculator = () => {
                   mannualPrice ? 'Manual Price' : 'Last Price'
                 }</label>
                 <div className="flex gap-2">
-                  <input type="text" name="lastPrice" id="lastPrice" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lastPrice || 0}
+                  <input type="tel" name="lastPrice" id="lastPrice" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lastPrice || 0}
                     onClick={() => setMannualPrice(true)}
                     onChange={e => { mannualPrice && handleInputChangeOnlyNumbers(e, setLastPrice) }}
                     readOnly={mannualPrice === false}
@@ -182,20 +209,22 @@ const PositionCalculator = () => {
               </div>
               <div>
                 <label htmlFor="stopLoss" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Stop Loss</label>
-                <input type="text" name="stopLoss" id="stopLoss" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" required="" value={stopLoss} onChange={e => handleInputChangeOnlyNumbers(e, setStopLoss)}></input>
+                <input type="tel" name="stopLoss" id="stopLoss" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" required="" value={stopLoss} onChange={e => handleInputChangeOnlyNumbers(e, setStopLoss)}></input>
               </div>
               <div>
                 <label htmlFor="lossPerTrade" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Loss Per Trade</label>
-                <input type="text" name="lossPerTrade" id="lossPerTrade" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lossPerTrade} prefix="$" onChange={e => handleInputChangeOnlyNumbers(e, setLossPerTrade)}></input>
+                <input type="tel" name="lossPerTrade" id="lossPerTrade" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lossPerTrade} prefix="$" onChange={e => handleInputChangeOnlyNumbers(e, setLossPerTrade)}></input>
               </div>
 
               <div className="relative">
                 <label htmlFor="positionSize" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Position Size</label>
                 <div className="flex gap-2">
-                  <input type="text" id="positionSize" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={positionSize} readOnly disabled></input>
+                  <input type="tel" id="positionSize" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={positionSize} readOnly disabled></input>
                   <button type="button" className="inline-flex items-center text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" onClick={(e) => {
                     e.preventDefault();
-                    navigator.clipboard.writeText(positionSize);
+                    // navigator.clipboard.writeText(positionSize);
+
+                    copyToClipboard(positionSize);
                   }}>Copy</button>
                 </div>
 
