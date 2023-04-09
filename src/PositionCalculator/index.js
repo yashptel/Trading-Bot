@@ -5,15 +5,23 @@ import { w3cwebsocket as WebSocket } from 'websocket';
 
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
-  const [selectedTradingPair, setSelectedTradingPair] = useState(null);
+  const [selectedTradingPair, setSelectedTradingPair] = useState(localStorage.getItem('selectedTradingPair') || 'BTC');
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredTradingPairs, setFilteredTradingPairs] = useState([]);
   const [lastPrice, setLastPrice] = useState(0);
   const [stopLoss, setStopLoss] = useState(0);
-  const [lossPerTrade, setLossPerTrade] = useState(0);
+  const [lossPerTrade, setLossPerTrade] = useState(localStorage.getItem('lossPerTrade') || 0);
   const [positionSize, setPositionSize] = useState(0);
   const [mannualPrice, setMannualPrice] = useState(false);
-  const [exchange, setExchange] = useState('Binance');
+  const [exchange, setExchange] = useState(localStorage.getItem('exchange') || 'Binance');
+
+  useEffect(() => {
+    localStorage.setItem('exchange', exchange);
+    localStorage.setItem('selectedTradingPair', selectedTradingPair);
+    localStorage.setItem('lossPerTrade', lossPerTrade);
+  }, [exchange, lossPerTrade, selectedTradingPair]);
+
+
 
 
 
@@ -61,7 +69,6 @@ const PositionCalculator = () => {
         const pairs = _.filter(symbols, symbol => symbol.contractType === 'PERPETUAL');
         setTradingPairs(pairs);
         setFilteredTradingPairs(pairs);
-        setSelectedTradingPair(_.first(pairs).baseAsset);
       })
       .catch(error => console.log(error));
   }, []);
