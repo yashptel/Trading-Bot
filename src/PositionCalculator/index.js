@@ -13,6 +13,9 @@ const PositionCalculator = () => {
   const [lossPerTrade, setLossPerTrade] = useState(0);
   const [positionSize, setPositionSize] = useState(0);
   const [mannualPrice, setMannualPrice] = useState(false);
+  const [exchange, setExchange] = useState('Binance');
+
+
 
   const handleInputChangeOnlyNumbers = (event, setFn) => {
     const value = event.target.value;
@@ -80,35 +83,40 @@ const PositionCalculator = () => {
     setFilteredTradingPairs(res);
   }, [searchTerm, tradingPairs]);
 
-  // useEffect(() => {
-  //   const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
-
-  //   socket.onopen = () => {
-  //     console.log('WebSocket Client Connected');
-  //     socket.send(JSON.stringify({
-  //       method: 'SUBSCRIBE',
-  //       params: [
-  //         `${_.toLower(selectedTradingPair + 'usdt')}@ticker`
-  //       ],
-  //       id: 1
-  //     }));
-  //   };
-
-  //   socket.onmessage = event => {
-  //     const data = JSON.parse(event.data);
-  //     setLastPrice(data.c);
-  //   };
-  //   return () => {
-  //     socket.close();
-  //   };
-  // }, [selectedTradingPair]);
-
-
+  // binance
   useEffect(() => {
+    if (exchange !== 'Binance') return;
+    const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
+
+    socket.onopen = () => {
+      console.log('WebSocket Client Connected =>', exchange);
+      socket.send(JSON.stringify({
+        method: 'SUBSCRIBE',
+        params: [
+          `${_.toLower(selectedTradingPair + 'usdt')}@ticker`
+        ],
+        id: 1
+      }));
+    };
+
+    socket.onmessage = event => {
+      const data = JSON.parse(event.data);
+      mannualPrice === false && setLastPrice(data.c);
+    };
+    return () => {
+      socket.close();
+    };
+  }, [selectedTradingPair, mannualPrice, exchange]);
+
+
+  // mexc
+  useEffect(() => {
+    if (exchange !== 'Mexc') return;
+
     const socket = new WebSocket(`wss://contract.mexc.com/ws`);
 
     socket.onopen = () => {
-      console.log('WebSocket Client Connected => MEXC');
+      console.log('WebSocket Client Connected =>', exchange);
       socket.send(JSON.stringify({
         "method": "sub.ticker",
         "param": {
@@ -136,7 +144,42 @@ const PositionCalculator = () => {
       socket.close();
     }
 
-  }, [selectedTradingPair, mannualPrice])
+  }, [selectedTradingPair, mannualPrice, exchange])
+
+  // woox
+  useEffect(() => {
+
+    if (exchange !== 'WooX') return;
+
+    const applicationId = 'd280c0d0-a933-4fa1-8edc-d4dc10281759'
+    const socket = new WebSocket(`wss://wss.woo.org/ws/stream/${applicationId}`);
+    socket.onopen = () => {
+      console.log('WebSocket Client Connected =>', exchange);
+      socket.send(JSON.stringify({
+        "event": "subscribe",
+        "topic": `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`,
+        'id': 'clientID4'
+      }));
+    };
+
+    socket.onmessage = event => {
+      const data = JSON.parse(event.data);
+      if (data.event === 'ping') {
+        socket.send(JSON.stringify({
+          "event": "pong",
+        }));
+        return;
+      }
+
+      const topic = _.get(data, 'topic', '');
+      if (topic !== `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`) return;
+      const price = _.get(data, 'data.close', 0);
+      mannualPrice === false && setLastPrice(price);
+    }
+    return () => {
+      socket.close();
+    }
+  }, [selectedTradingPair, mannualPrice, exchange])
 
 
   return (
@@ -151,8 +194,9 @@ const PositionCalculator = () => {
 
 
 
-              <div className='w-full'>
-                <button id="dropdownSearchButton" data-dropdown-toggle="dropdownSearch" data-dropdown-placement="bottom" className="mx-auto text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">{selectedTradingPair}<svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></button>
+              <div className='w-full flex justify-between'>
+                <button id="dropdownSearchButton" data-dropdown-toggle="dropdownSearch" data-dropdown-placement="bottom" className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">{selectedTradingPair}<svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                <button id="dropdownSearchButtonExchange" data-dropdown-toggle="dropdownSearchExchange" data-dropdown-placement="bottom" className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">{exchange}<svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></button>
               </div>
 
               <div id="dropdownSearch" className="z-10 hidden bg-white rounded-lg shadow w-60 dark:bg-gray-700">
@@ -178,6 +222,29 @@ const PositionCalculator = () => {
                         <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
                           <label htmlFor="checkbox-item-11" className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300">{
                             pair.pair
+                          }</label>
+                        </div>
+                      </li>
+                    )
+                  })}
+
+                </ul>
+
+              </div>
+              <div id="dropdownSearchExchange" className="z-10 hidden bg-white rounded-lg shadow w-40 dark:bg-gray-700">
+                <ul className="h-34 px-3 py-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownSearchButton">
+                  {_.map(['Binance', 'Mexc', 'WooX'], (exchange) => {
+                    return (
+                      <li key={exchange} onClick={
+                        () => {
+                          setExchange(exchange);
+                          const el = document.getElementById('dropdownSearchButtonExchange');
+                          el && el.click();
+                        }
+                      }>
+                        <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                          <label htmlFor="checkbox-item-11" className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300">{
+                            exchange
                           }</label>
                         </div>
                       </li>
