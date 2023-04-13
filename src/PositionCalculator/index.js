@@ -1,35 +1,39 @@
 import axios from "axios";
 import _ from "lodash";
 import React, { useEffect, useState } from "react";
-import { w3cwebsocket as WebSocket } from 'websocket';
+import { w3cwebsocket as WebSocket } from "websocket";
 
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
-  const [selectedTradingPair, setSelectedTradingPair] = useState(localStorage.getItem('selectedTradingPair') || 'BTC');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTradingPair, setSelectedTradingPair] = useState(
+    localStorage.getItem("selectedTradingPair") || "BTC"
+  );
+  const [searchTerm, setSearchTerm] = useState("");
   const [filteredTradingPairs, setFilteredTradingPairs] = useState([]);
   const [lastPrice, setLastPrice] = useState(0);
   const [stopLoss, setStopLoss] = useState(0);
-  const [lossPerTrade, setLossPerTrade] = useState(localStorage.getItem('lossPerTrade') || 0);
+  const [lossPerTrade, setLossPerTrade] = useState(
+    localStorage.getItem("lossPerTrade") || 0
+  );
   const [positionSize, setPositionSize] = useState(0);
   const [mannualPrice, setMannualPrice] = useState(false);
-  const [exchange, setExchange] = useState(localStorage.getItem('exchange') || 'Binance');
+  const [exchange, setExchange] = useState(
+    localStorage.getItem("exchange") || "Binance"
+  );
 
   useEffect(() => {
-    localStorage.setItem('exchange', exchange);
-    localStorage.setItem('selectedTradingPair', selectedTradingPair);
-    localStorage.setItem('lossPerTrade', lossPerTrade);
+    localStorage.setItem("exchange", exchange);
+    localStorage.setItem("selectedTradingPair", selectedTradingPair);
+    localStorage.setItem("lossPerTrade", lossPerTrade);
   }, [exchange, lossPerTrade, selectedTradingPair]);
-
-
-
-
 
   const handleInputChangeOnlyNumbers = (event, setFn) => {
     const value = event.target.value;
     const valid = /^\d*\.?\d*$/.test(value);
     if (valid) {
-      /^0\d/.test(value) ? setFn(_.replace(value, /^0/, '')) : setFn(value || 0);
+      /^0\d/.test(value)
+        ? setFn(_.replace(value, /^0/, ""))
+        : setFn(value || 0);
     }
   };
 
@@ -50,63 +54,63 @@ const PositionCalculator = () => {
       textArea.select();
 
       try {
-        document.execCommand('copy');
+        document.execCommand("copy");
       } catch (error) {
         console.error(error);
       } finally {
         textArea.remove();
       }
-
     }
   }
 
-
   useEffect(() => {
     axios
-      .get('https://dapi.binance.com/dapi/v1/exchangeInfo')
-      .then(response => {
-        const symbols = _.get(response, 'data.symbols', []);
-        const pairs = _.filter(symbols, symbol => symbol.contractType === 'PERPETUAL');
+      .get("https://dapi.binance.com/dapi/v1/exchangeInfo")
+      .then((response) => {
+        const symbols = _.get(response, "data.symbols", []);
+        const pairs = _.filter(
+          symbols,
+          (symbol) => symbol.contractType === "PERPETUAL"
+        );
         setTradingPairs(pairs);
         setFilteredTradingPairs(pairs);
       })
-      .catch(error => console.log(error));
+      .catch((error) => console.log(error));
   }, []);
 
-
   useEffect(() => {
-
     const diff = Math.abs(Number(stopLoss) - Number(lastPrice));
     const percentage = (diff / Number(lastPrice)) * 100;
 
     const positionAmount = (100 / percentage) * Number(lossPerTrade);
     const positionSize = positionAmount / Number(lastPrice);
     !_.isNaN(positionSize) && setPositionSize(positionSize);
-
   }, [lastPrice, stopLoss, lossPerTrade]);
 
   useEffect(() => {
-    const res = _.filter(tradingPairs, pair => _.lowerCase(pair.pair).includes(_.lowerCase(searchTerm)));
+    const res = _.filter(tradingPairs, (pair) =>
+      _.lowerCase(pair.pair).includes(_.lowerCase(searchTerm))
+    );
     setFilteredTradingPairs(res);
   }, [searchTerm, tradingPairs]);
 
   // binance
   useEffect(() => {
-    if (exchange !== 'Binance') return;
+    if (exchange !== "Binance") return;
     const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
 
     socket.onopen = () => {
-      console.log('WebSocket Client Connected =>', exchange);
-      socket.send(JSON.stringify({
-        method: 'SUBSCRIBE',
-        params: [
-          `${_.toLower(selectedTradingPair + 'usdt')}@ticker`
-        ],
-        id: 1
-      }));
+      console.log("WebSocket Client Connected =>", exchange);
+      socket.send(
+        JSON.stringify({
+          method: "SUBSCRIBE",
+          params: [`${_.toLower(selectedTradingPair + "usdt")}@ticker`],
+          id: 1,
+        })
+      );
     };
 
-    socket.onmessage = event => {
+    socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       mannualPrice === false && setLastPrice(data.c);
     };
@@ -115,79 +119,86 @@ const PositionCalculator = () => {
     };
   }, [selectedTradingPair, mannualPrice, exchange]);
 
-
   // mexc
   useEffect(() => {
-    if (exchange !== 'Mexc') return;
+    if (exchange !== "Mexc") return;
 
     const socket = new WebSocket(`wss://contract.mexc.com/ws`);
 
     socket.onopen = () => {
-      console.log('WebSocket Client Connected =>', exchange);
-      socket.send(JSON.stringify({
-        "method": "sub.ticker",
-        "param": {
-          symbol: _.toUpper(selectedTradingPair + '_USDT')
-        }
-      }));
+      console.log("WebSocket Client Connected =>", exchange);
+      socket.send(
+        JSON.stringify({
+          method: "sub.ticker",
+          param: {
+            symbol: _.toUpper(selectedTradingPair + "_USDT"),
+          },
+        })
+      );
 
       setInterval(() => {
-        socket.send(JSON.stringify({
-          "method": "ping",
-        }));
+        socket.send(
+          JSON.stringify({
+            method: "ping",
+          })
+        );
       }, 10000);
     };
 
-    socket.onmessage = event => {
+    socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const channel = _.get(data, 'channel', '');
-      if (channel !== 'push.ticker') return;
+      const channel = _.get(data, "channel", "");
+      if (channel !== "push.ticker") return;
 
-      const price = _.get(data, 'data.lastPrice', 0);
+      const price = _.get(data, "data.lastPrice", 0);
       mannualPrice === false && setLastPrice(price);
-    }
+    };
 
     return () => {
       socket.close();
-    }
-
-  }, [selectedTradingPair, mannualPrice, exchange])
+    };
+  }, [selectedTradingPair, mannualPrice, exchange]);
 
   // woox
   useEffect(() => {
+    if (exchange !== "WooX") return;
 
-    if (exchange !== 'WooX') return;
-
-    const applicationId = 'd280c0d0-a933-4fa1-8edc-d4dc10281759'
-    const socket = new WebSocket(`wss://wss.woo.org/ws/stream/${applicationId}`);
+    const applicationId = "d280c0d0-a933-4fa1-8edc-d4dc10281759";
+    const socket = new WebSocket(
+      `wss://wss.woo.org/ws/stream/${applicationId}`
+    );
     socket.onopen = () => {
-      console.log('WebSocket Client Connected =>', exchange);
-      socket.send(JSON.stringify({
-        "event": "subscribe",
-        "topic": `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`,
-        'id': 'clientID4'
-      }));
+      console.log("WebSocket Client Connected =>", exchange);
+      socket.send(
+        JSON.stringify({
+          event: "subscribe",
+          topic: `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`,
+          id: "clientID4",
+        })
+      );
     };
 
-    socket.onmessage = event => {
+    socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.event === 'ping') {
-        socket.send(JSON.stringify({
-          "event": "pong",
-        }));
+      if (data.event === "ping") {
+        socket.send(
+          JSON.stringify({
+            event: "pong",
+          })
+        );
         return;
       }
 
-      const topic = _.get(data, 'topic', '');
-      if (topic !== `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`) return;
-      const price = _.get(data, 'data.close', 0);
+      const topic = _.get(data, "topic", "");
+      if (topic !== `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`)
+        return;
+      const price = _.get(data, "data.close", 0);
       mannualPrice === false && setLastPrice(price);
-    }
+    };
     return () => {
       socket.close();
-    }
-  }, [selectedTradingPair, mannualPrice, exchange])
-
+    };
+  }, [selectedTradingPair, mannualPrice, exchange]);
 
   return (
     <section className="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -198,118 +209,286 @@ const PositionCalculator = () => {
               Position Size Calculator
             </h1>
             <form className="space-y-4 md:space-y-6" action="#">
-
-
-
-              <div className='w-full flex justify-between'>
-                <button id="dropdownSearchButton" data-dropdown-toggle="dropdownSearch" data-dropdown-placement="bottom" className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">{selectedTradingPair}<svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></button>
-                <button id="dropdownSearchButtonExchange" data-dropdown-toggle="dropdownSearchExchange" data-dropdown-placement="bottom" className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" type="button">{exchange}<svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></button>
+              <div className="w-full flex justify-between">
+                <button
+                  id="dropdownSearchButton"
+                  data-dropdown-toggle="dropdownSearch"
+                  data-dropdown-placement="bottom"
+                  className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  type="button"
+                >
+                  {selectedTradingPair}
+                  <svg
+                    className="w-4 h-4 ml-2"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </button>
+                <button
+                  id="dropdownSearchButtonExchange"
+                  data-dropdown-toggle="dropdownSearchExchange"
+                  data-dropdown-placement="bottom"
+                  className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  type="button"
+                >
+                  {exchange}
+                  <svg
+                    className="w-4 h-4 ml-2"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </button>
               </div>
 
-              <div id="dropdownSearch" className="z-10 hidden bg-white rounded-lg shadow w-60 dark:bg-gray-700">
+              <div
+                id="dropdownSearch"
+                className="z-10 hidden bg-white rounded-lg shadow w-60 dark:bg-gray-700"
+              >
                 <div className="p-3">
-                  <label htmlFor="input-group-search" className="sr-only">Search</label>
+                  <label htmlFor="input-group-search" className="sr-only">
+                    Search
+                  </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"></path></svg>
+                      <svg
+                        className="w-5 h-5 text-gray-500 dark:text-gray-400"
+                        aria-hidden="true"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                          clipRule="evenodd"
+                        ></path>
+                      </svg>
                     </div>
-                    <input type="text" id="input-group-search" className="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search Pair" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}></input>
+                    <input
+                      type="text"
+                      id="input-group-search"
+                      className="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                      placeholder="Search Pair"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    ></input>
                   </div>
                 </div>
-                <ul className="h-48 px-3 pb-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownSearchButton">
-                  {_.map(filteredTradingPairs, pair => {
+                <ul
+                  className="h-48 px-3 pb-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200"
+                  aria-labelledby="dropdownSearchButton"
+                >
+                  {_.map(filteredTradingPairs, (pair) => {
                     return (
-                      <li key={pair.pair} onClick={
-                        () => {
+                      <li
+                        key={pair.pair}
+                        onClick={() => {
                           setSelectedTradingPair(pair.baseAsset);
-                          const el = document.getElementById('dropdownSearchButton');
+                          const el = document.getElementById(
+                            "dropdownSearchButton"
+                          );
                           el && el.click();
-                        }
-                      }>
+                        }}
+                      >
                         <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                          <label htmlFor="checkbox-item-11" className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300">{
-                            pair.pair
-                          }</label>
+                          <label
+                            htmlFor="checkbox-item-11"
+                            className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                          >
+                            {pair.pair}
+                          </label>
                         </div>
                       </li>
-                    )
+                    );
                   })}
-
                 </ul>
-
               </div>
-              <div id="dropdownSearchExchange" className="z-10 hidden bg-white rounded-lg shadow w-40 dark:bg-gray-700">
-                <ul className="h-34 px-3 py-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownSearchButton">
-                  {_.map(['Binance', 'Mexc', 'WooX'], (exchange) => {
+              <div
+                id="dropdownSearchExchange"
+                className="z-10 hidden bg-white rounded-lg shadow w-40 dark:bg-gray-700"
+              >
+                <ul
+                  className="h-34 px-3 py-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200"
+                  aria-labelledby="dropdownSearchButton"
+                >
+                  {_.map(["Binance", "Mexc", "WooX"], (exchange) => {
                     return (
-                      <li key={exchange} onClick={
-                        () => {
+                      <li
+                        key={exchange}
+                        onClick={() => {
                           setExchange(exchange);
-                          const el = document.getElementById('dropdownSearchButtonExchange');
+                          const el = document.getElementById(
+                            "dropdownSearchButtonExchange"
+                          );
                           el && el.click();
-                        }
-                      }>
+                        }}
+                      >
                         <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                          <label htmlFor="checkbox-item-11" className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300">{
-                            exchange
-                          }</label>
+                          <label
+                            htmlFor="checkbox-item-11"
+                            className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                          >
+                            {exchange}
+                          </label>
                         </div>
                       </li>
-                    )
+                    );
                   })}
-
                 </ul>
-
               </div>
-
 
               <div>
-                <label htmlFor="lastPrice" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">{
-                  mannualPrice ? 'Manual Price' : 'Last Price'
-                }</label>
+                <label
+                  htmlFor="lastPrice"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  {mannualPrice ? "Manual Price" : "Last Price"}
+                </label>
                 <div className="flex gap-2">
-                  <input type="tel" name="lastPrice" id="lastPrice" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lastPrice || 0}
+                  <input
+                    type="tel"
+                    name="lastPrice"
+                    id="lastPrice"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                    value={lastPrice || 0}
                     onClick={() => setMannualPrice(true)}
-                    onChange={e => { mannualPrice && handleInputChangeOnlyNumbers(e, setLastPrice) }}
+                    onChange={(e) => {
+                      mannualPrice &&
+                        handleInputChangeOnlyNumbers(e, setLastPrice);
+                    }}
                     readOnly={mannualPrice === false}
                   ></input>
-                  <button type="button" onClick={() => setMannualPrice(false)} className="text-gray-700 border hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500">
-                    <svg aria-hidden="true" fill="none" className="w-6" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" strokeLinecap="round" strokeLinejoin="round"></path>
+                  <button
+                    type="button"
+                    onClick={() => setMannualPrice(false)}
+                    className="text-gray-700 border hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      className="w-6"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      ></path>
                     </svg>
                     <span className="sr-only">Icon description</span>
                   </button>
                 </div>
               </div>
               <div>
-                <label htmlFor="stopLoss" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Stop Loss</label>
-                <input type="tel" name="stopLoss" id="stopLoss" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" required="" value={stopLoss} onChange={e => handleInputChangeOnlyNumbers(e, setStopLoss)}></input>
+                <label
+                  htmlFor="stopLoss"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Stop Loss
+                </label>
+                <input
+                  type="tel"
+                  name="stopLoss"
+                  id="stopLoss"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                  required=""
+                  value={stopLoss}
+                  onChange={(e) => handleInputChangeOnlyNumbers(e, setStopLoss)}
+                ></input>
               </div>
               <div>
-                <label htmlFor="lossPerTrade" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Loss Per Trade</label>
-                <input type="tel" name="lossPerTrade" id="lossPerTrade" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={lossPerTrade} prefix="$" onChange={e => handleInputChangeOnlyNumbers(e, setLossPerTrade)}></input>
+                <label
+                  htmlFor="lossPerTrade"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Loss Per Trade
+                </label>
+                <input
+                  type="tel"
+                  name="lossPerTrade"
+                  id="lossPerTrade"
+                  className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                  value={lossPerTrade}
+                  prefix="$"
+                  onChange={(e) =>
+                    handleInputChangeOnlyNumbers(e, setLossPerTrade)
+                  }
+                ></input>
+
+                <div className="mt-1.5">
+                  {_.map([5, 10, 14, 19, 24, 29], (loss) => {
+                    return (
+                      <span
+                        class="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
+                        onClick={() => {
+                          setLossPerTrade(loss);
+                        }}
+                      >
+                        ${loss}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="relative">
-                <label htmlFor="positionSize" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Position Size</label>
+                <label
+                  htmlFor="positionSize"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Position Size
+                </label>
                 <div className="flex gap-2">
-                  <input type="tel" id="positionSize" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" value={positionSize} readOnly disabled></input>
-                  <button type="button" className="inline-flex items-center text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" onClick={(e) => {
-                    e.preventDefault();
-                    // navigator.clipboard.writeText(positionSize);
+                  <input
+                    type="tel"
+                    id="positionSize"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                    value={positionSize}
+                    readOnly
+                    disabled
+                  ></input>
+                  <button
+                    type="button"
+                    className="inline-flex items-center text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // navigator.clipboard.writeText(positionSize);
 
-                    copyToClipboard(positionSize);
-                  }}>Copy</button>
+                      copyToClipboard(positionSize);
+                    }}
+                  >
+                    Copy
+                  </button>
                 </div>
-
               </div>
-
             </form>
           </div>
         </div>
-      </div >
-    </section >
-
+      </div>
+    </section>
   );
 };
 
