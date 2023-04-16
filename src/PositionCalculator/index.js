@@ -6,7 +6,14 @@ import { w3cwebsocket as WebSocket } from "websocket";
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
   const [selectedTradingPair, setSelectedTradingPair] = useState(
-    localStorage.getItem("selectedTradingPair") || "BTC"
+    JSON.parse(
+      localStorage.getItem("selectedTradingPair") ||
+        JSON.stringify({
+          pair: "BTCUSDT",
+          baseAsset: "BTC",
+          quoteAsset: "USDT",
+        })
+    )
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredTradingPairs, setFilteredTradingPairs] = useState([]);
@@ -23,8 +30,111 @@ const PositionCalculator = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+
+    exchange === "Binance" &&
+      axios
+        .get("https://fapi.binance.com/fapi/v1/exchangeInfo")
+        .then((response) => {
+          const perpetualContracts = _.filter(
+            _.get(response, "data.symbols", []),
+            (symbol) => symbol.contractType === "PERPETUAL"
+          );
+
+          const pairs = _.map(perpetualContracts, (contract) => ({
+            pair: contract.pair,
+            baseAsset: contract.baseAsset,
+            quoteAsset: contract.quoteAsset,
+          }));
+
+          const pair =
+            _.find(
+              pairs,
+              (pair) =>
+                pair.baseAsset === selectedTradingPair.baseAsset &&
+                pair.quoteAsset === selectedTradingPair.quoteAsset
+            ) || _.first(pairs);
+
+          !cancelled && setTradingPairs([...pairs]);
+          !cancelled && setFilteredTradingPairs([...pairs]);
+          !cancelled && setSelectedTradingPair(pair);
+        })
+        .catch((error) => console.log(error));
+
+    exchange === "Mexc" &&
+      axios
+        .get("https://contract.mexc.com/api/v1/contract/detail")
+        .then((response) => {
+          const perpetualContracts = _.filter(
+            _.get(response, "data.data", []),
+            (symbol) => symbol.futureType === 1
+          );
+
+          const pairs = _.map(perpetualContracts, (contract) => ({
+            pair: contract.symbol,
+            baseAsset: contract.baseCoin,
+            quoteAsset: contract.quoteCoin,
+          }));
+
+          const pair =
+            _.find(
+              pairs,
+              (pair) =>
+                pair.baseAsset === selectedTradingPair.baseAsset &&
+                pair.quoteAsset === selectedTradingPair.quoteAsset
+            ) || _.first(pairs);
+
+          !cancelled && setTradingPairs([...pairs]);
+          !cancelled && setFilteredTradingPairs([...pairs]);
+          !cancelled && setSelectedTradingPair(pair);
+        })
+        .catch((error) => console.log(error));
+
+    exchange === "WooX" &&
+      axios
+        .get("https://api.woo.org/v1/public/info")
+        .then((response) => {
+          const perpetualContracts = _.filter(
+            _.get(response, "data.rows", []),
+            (symbol) => _.get(_.split(symbol.symbol, "_"), 0) === "PERP"
+          );
+
+          const pairs = _.map(perpetualContracts, (contract) => {
+            const [, baseAsset, quoteAsset] = _.split(contract.symbol, "_");
+            return {
+              pair: contract.symbol,
+              baseAsset,
+              quoteAsset,
+            };
+          });
+
+          const pair =
+            _.find(
+              pairs,
+              (pair) =>
+                pair.baseAsset === selectedTradingPair.baseAsset &&
+                pair.quoteAsset === selectedTradingPair.quoteAsset
+            ) || _.first(pairs);
+
+          !cancelled && setTradingPairs([...pairs]);
+          !cancelled && setFilteredTradingPairs([...pairs]);
+          !cancelled && setSelectedTradingPair(pair);
+        })
+        .catch((error) => console.log(error));
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exchange]);
+
+  useEffect(() => {
     localStorage.setItem("exchange", exchange);
-    localStorage.setItem("selectedTradingPair", selectedTradingPair);
+    localStorage.setItem(
+      "selectedTradingPair",
+      JSON.stringify(selectedTradingPair)
+    );
     localStorage.setItem("lossPerTrade", lossPerTrade);
   }, [exchange, lossPerTrade, selectedTradingPair]);
 
@@ -65,22 +175,6 @@ const PositionCalculator = () => {
   }
 
   useEffect(() => {
-    setIsLoading(true);
-    axios
-      .get("https://dapi.binance.com/dapi/v1/exchangeInfo")
-      .then((response) => {
-        const symbols = _.get(response, "data.symbols", []);
-        const pairs = _.filter(
-          symbols,
-          (symbol) => symbol.contractType === "PERPETUAL"
-        );
-        setTradingPairs(pairs);
-        setFilteredTradingPairs(pairs);
-      })
-      .catch((error) => console.log(error));
-  }, []);
-
-  useEffect(() => {
     const diff = Math.abs(Number(stopLoss) - Number(lastPrice));
     const percentage = (diff / Number(lastPrice)) * 100;
 
@@ -90,119 +184,116 @@ const PositionCalculator = () => {
   }, [lastPrice, stopLoss, lossPerTrade]);
 
   useEffect(() => {
-    const res = _.filter(tradingPairs, (pair) =>
-      _.lowerCase(pair.pair).includes(_.lowerCase(searchTerm))
-    );
+    const term = _.replace(searchTerm, /[^a-zA-Z0-9]/g, "");
+    const res = _.filter(tradingPairs, (pair) => {
+      const { baseAsset, quoteAsset } = pair;
+      const pairName = `${baseAsset}${quoteAsset}`;
+      return pairName.toLowerCase().includes(term.toLowerCase());
+    });
     setFilteredTradingPairs(res);
   }, [searchTerm, tradingPairs]);
 
-  // binance
   useEffect(() => {
-    if (exchange !== "Binance") return;
-    const socket = new WebSocket(`wss://stream.binance.com:9443/ws`);
+    !mannualPrice && setIsLoading(true);
 
-    setIsLoading(!mannualPrice && true);
-    socket.onopen = () => {
-      console.log("WebSocket Client Connected =>", exchange);
-      socket.send(
-        JSON.stringify({
-          method: "SUBSCRIBE",
-          params: [`${_.toLower(selectedTradingPair + "usdt")}@ticker`],
-          id: 1,
-        })
-      );
-    };
+    const applicationId = "d280c0d0-a933-4fa1-8edc-d4dc10281759"; // woox
+    const socketAddress =
+      (exchange === "Binance" && `wss://stream.binance.com:9443/ws`) ||
+      (exchange === "Mexc" && `wss://contract.mexc.com/ws`) ||
+      (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`);
 
-    socket.onmessage = (event) => {
-      setIsLoading(false);
-      const data = JSON.parse(event.data);
-      mannualPrice === false && setLastPrice(data.c);
-    };
-    return () => {
-      socket.close();
-    };
-  }, [selectedTradingPair, mannualPrice, exchange]);
+    const { baseAsset, quoteAsset } = selectedTradingPair;
 
-  // mexc
-  useEffect(() => {
-    if (exchange !== "Mexc") return;
+    const pair =
+      (exchange === "Binance" && _.toLower(`${baseAsset}${quoteAsset}`)) ||
+      (exchange === "Mexc" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
+      (exchange === "WooX" && _.toUpper(`PERP_${baseAsset}_${quoteAsset}`));
 
-    const socket = new WebSocket(`wss://contract.mexc.com/ws`);
-    setIsLoading(!mannualPrice && true);
+    const socket = new WebSocket(socketAddress);
 
-    socket.onopen = () => {
-      console.log("WebSocket Client Connected =>", exchange);
-      socket.send(
-        JSON.stringify({
-          method: "sub.ticker",
-          param: {
-            symbol: _.toUpper(selectedTradingPair + "_USDT"),
-          },
-        })
-      );
-
-      setInterval(() => {
+    const onOpen = {
+      Binance: () => {
+        console.log("WebSocket Client Connected =>", exchange);
         socket.send(
           JSON.stringify({
-            method: "ping",
+            method: "SUBSCRIBE",
+            params: [`${pair}@ticker`],
+            id: 1,
           })
         );
-      }, 10000);
-    };
+      },
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const channel = _.get(data, "channel", "");
-      if (channel !== "push.ticker") return;
-      setIsLoading(false);
-      const price = _.get(data, "data.lastPrice", 0);
-      mannualPrice === false && setLastPrice(price);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [selectedTradingPair, mannualPrice, exchange]);
-
-  // woox
-  useEffect(() => {
-    if (exchange !== "WooX") return;
-
-    const applicationId = "d280c0d0-a933-4fa1-8edc-d4dc10281759";
-    const socket = new WebSocket(
-      `wss://wss.woo.org/ws/stream/${applicationId}`
-    );
-    setIsLoading(!mannualPrice && true);
-    socket.onopen = () => {
-      console.log("WebSocket Client Connected =>", exchange);
-      socket.send(
-        JSON.stringify({
-          event: "subscribe",
-          topic: `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`,
-          id: "clientID4",
-        })
-      );
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.event === "ping") {
+      Mexc: () => {
+        console.log("WebSocket Client Connected =>", exchange);
         socket.send(
           JSON.stringify({
-            event: "pong",
+            method: "sub.ticker",
+            param: {
+              symbol: pair,
+            },
           })
         );
-        return;
-      }
 
-      const topic = _.get(data, "topic", "");
-      if (topic !== `PERP_${_.toUpper(selectedTradingPair)}_USDT@ticker`)
-        return;
-
-      setIsLoading(false);
-      const price = _.get(data, "data.close", 0);
-      mannualPrice === false && setLastPrice(price);
+        setInterval(() => {
+          socket.send(
+            JSON.stringify({
+              method: "ping",
+            })
+          );
+        }, 10000);
+      },
+      WooX: () => {
+        console.log("WebSocket Client Connected =>", exchange);
+        socket.send(
+          JSON.stringify({
+            event: "subscribe",
+            topic: `${pair}@ticker`,
+            id: "clientID4",
+          })
+        );
+      },
     };
+
+    const onMessage = {
+      Binance: (event) => {
+        const data = JSON.parse(event.data);
+        !mannualPrice && setLastPrice(data.c);
+        setIsLoading(false);
+      },
+
+      Mexc: (event) => {
+        const data = JSON.parse(event.data);
+        const channel = _.get(data, "channel", "");
+        if (channel !== "push.ticker") return;
+        const price = _.get(data, "data.lastPrice", 0);
+        !mannualPrice && setLastPrice(price);
+        setIsLoading(false);
+      },
+
+      WooX: (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.event === "ping") {
+          socket.send(
+            JSON.stringify({
+              event: "pong",
+            })
+          );
+          return;
+        }
+
+        const topic = _.get(data, "topic", "");
+        if (topic !== `${pair}@ticker`) return;
+
+        const price = _.get(data, "data.close", 0);
+        !mannualPrice && setLastPrice(price);
+        setIsLoading(false);
+      },
+    };
+
+    socket.onopen = onOpen[exchange];
+    socket.onmessage = onMessage[exchange];
+
     return () => {
       socket.close();
     };
@@ -225,7 +316,7 @@ const PositionCalculator = () => {
                   className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                   type="button"
                 >
-                  {selectedTradingPair}
+                  {`${selectedTradingPair.baseAsset}/${selectedTradingPair.quoteAsset}`}
                   <svg
                     className="w-4 h-4 ml-2"
                     aria-hidden="true"
@@ -311,7 +402,9 @@ const PositionCalculator = () => {
                       <li
                         key={pair.pair}
                         onClick={() => {
-                          setSelectedTradingPair(pair.baseAsset);
+                          setSelectedTradingPair({
+                            ...pair,
+                          });
                           const el = document.getElementById(
                             "dropdownSearchButton"
                           );
@@ -323,7 +416,7 @@ const PositionCalculator = () => {
                             htmlFor="checkbox-item-11"
                             className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
                           >
-                            {pair.pair}
+                            {`${pair.baseAsset}/${pair.quoteAsset}`}
                           </label>
                         </div>
                       </li>
@@ -450,7 +543,7 @@ const PositionCalculator = () => {
                   {_.map([5, 10, 14, 19, 24, 29], (loss) => {
                     return (
                       <span
-                        class="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
+                        className="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
                         onClick={() => {
                           setLossPerTrade(loss);
                         }}
@@ -498,7 +591,7 @@ const PositionCalculator = () => {
               <div role="status" className="flex justify-center">
                 <svg
                   aria-hidden="true"
-                  class="w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
+                  className="w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
                   viewBox="0 0 100 101"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
@@ -512,7 +605,7 @@ const PositionCalculator = () => {
                     fill="currentFill"
                   />
                 </svg>
-                <span class="sr-only">Loading...</span>
+                <span className="sr-only">Loading...</span>
               </div>
             )}
           </div>
