@@ -3,17 +3,26 @@ import _ from "lodash";
 import React, { useEffect, useState } from "react";
 import { w3cwebsocket as WebSocket } from "websocket";
 
+const getSelectedTradingPair = () => {
+  const defaultPair = {
+    pair: "BTCUSDT",
+    baseAsset: "BTC",
+    quoteAsset: "USDT",
+  };
+  try {
+    return (
+      JSON.parse(localStorage.getItem("selectedTradingPair")) || defaultPair
+    );
+  } catch (error) {
+    return defaultPair;
+  }
+};
+
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
+
   const [selectedTradingPair, setSelectedTradingPair] = useState(
-    JSON.parse(
-      localStorage.getItem("selectedTradingPair") ||
-        JSON.stringify({
-          pair: "BTCUSDT",
-          baseAsset: "BTC",
-          quoteAsset: "USDT",
-        })
-    )
+    getSelectedTradingPair()
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredTradingPairs, setFilteredTradingPairs] = useState([]);
