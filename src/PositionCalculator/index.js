@@ -2,6 +2,7 @@ import axios from "axios";
 import _ from "lodash";
 import React, { useEffect, useState } from "react";
 import { w3cwebsocket as WebSocket } from "websocket";
+import { gateioFutureContracts } from "./data";
 
 const getSelectedTradingPair = () => {
   const defaultPair = {
@@ -132,6 +133,28 @@ const PositionCalculator = () => {
         })
         .catch((error) => console.log(error));
 
+    if (exchange === "Gate.io") {
+      const pairs = _.map(gateioFutureContracts, (contract) => {
+        const [baseAsset, quoteAsset] = _.split(contract.name, "_");
+        return {
+          pair: contract.name,
+          baseAsset,
+          quoteAsset,
+        };
+      });
+
+      const pair =
+        _.find(
+          pairs,
+          (pair) =>
+            pair.baseAsset === selectedTradingPair.baseAsset &&
+            pair.quoteAsset === selectedTradingPair.quoteAsset
+        ) || _.first(pairs);
+
+      !cancelled && setTradingPairs([...pairs]);
+      !cancelled && setFilteredTradingPairs([...pairs]);
+      !cancelled && setSelectedTradingPair(pair);
+    }
     return () => {
       cancelled = true;
     };
@@ -209,14 +232,16 @@ const PositionCalculator = () => {
     const socketAddress =
       (exchange === "Binance" && `wss://stream.binance.com:9443/ws`) ||
       (exchange === "Mexc" && `wss://contract.mexc.com/ws`) ||
-      (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`);
+      (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`) ||
+      (exchange === "Gate.io" && `wss://fx-ws.gateio.ws/v4/ws/usdt`);
 
     const { baseAsset, quoteAsset } = selectedTradingPair;
 
     const pair =
       (exchange === "Binance" && _.toLower(`${baseAsset}${quoteAsset}`)) ||
       (exchange === "Mexc" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
-      (exchange === "WooX" && _.toUpper(`PERP_${baseAsset}_${quoteAsset}`));
+      (exchange === "WooX" && _.toUpper(`PERP_${baseAsset}_${quoteAsset}`)) ||
+      (exchange === "Gate.io" && _.toUpper(`${baseAsset}_${quoteAsset}`));
 
     const socket = new WebSocket(socketAddress);
 
@@ -261,6 +286,18 @@ const PositionCalculator = () => {
           })
         );
       },
+
+      "Gate.io": () => {
+        console.log("WebSocket Client Connected =>", exchange);
+        socket.send(
+          JSON.stringify({
+            time: Date.now(),
+            channel: "futures.tickers",
+            event: "subscribe",
+            payload: [pair],
+          })
+        );
+      },
     };
 
     const onMessage = {
@@ -295,6 +332,23 @@ const PositionCalculator = () => {
         if (topic !== `${pair}@ticker`) return;
 
         const price = _.get(data, "data.close", 0);
+        !mannualPrice && setLastPrice(price);
+        setIsLoading(false);
+      },
+
+      "Gate.io": (event) => {
+        const data = JSON.parse(event.data);
+        const channel = _.get(data, "channel", "");
+
+        if (channel !== "futures.tickers") return;
+
+        const result = _.get(data, "result", []);
+        const ticker = _.find(result, { contract: pair });
+
+        if (!ticker) return;
+
+        const price = _.get(ticker, "last", 0);
+
         !mannualPrice && setLastPrice(price);
         setIsLoading(false);
       },
@@ -441,7 +495,7 @@ const PositionCalculator = () => {
                   className="h-34 px-3 py-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200"
                   aria-labelledby="dropdownSearchButton"
                 >
-                  {_.map(["Binance", "Mexc", "WooX"], (exchange) => {
+                  {_.map(["Binance", "Mexc", "WooX", "Gate.io"], (exchange) => {
                     return (
                       <li
                         key={exchange}
