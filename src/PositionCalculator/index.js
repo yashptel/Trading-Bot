@@ -3,6 +3,7 @@ import _ from "lodash";
 import React, { useEffect, useState } from "react";
 import { w3cwebsocket as WebSocket } from "websocket";
 import { gateioFutureContracts } from "./data";
+import CryptoJS from "crypto-js";
 
 const getSelectedTradingPair = () => {
   const defaultPair = {
@@ -18,6 +19,33 @@ const getSelectedTradingPair = () => {
     return defaultPair;
   }
 };
+
+function roundToSamePrecision(number, sample) {
+  // Get the number of decimal places in the sample number.
+  var decimalPlaces = sample.toString().split(".")[1].length;
+
+  // Round the number to the same number of decimal places.
+  return _.round(number, decimalPlaces);
+}
+
+function generateSignature(params, apiSecret) {
+  const keys = Object.keys(params).sort();
+  const queryParams = [];
+
+  for (const key of keys) {
+    queryParams.push(`${key}=${params[key]}`);
+  }
+
+  const queryString = queryParams.join("&");
+
+  console.log("queryString", queryString);
+  const signature = CryptoJS.HmacSHA256(queryString, apiSecret).toString(
+    CryptoJS.enc.Hex
+  );
+
+  console.log("signature", signature);
+  return signature;
+}
 
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
@@ -155,6 +183,41 @@ const PositionCalculator = () => {
       !cancelled && setFilteredTradingPairs([...pairs]);
       !cancelled && setSelectedTradingPair(pair);
     }
+
+    exchange === "Bybit" &&
+      axios
+        .get("https://api.bybit.com/v5/market/instruments-info?category=linear")
+        .then((response) => {
+          console.log(response.data);
+
+          const perpetualContracts = _.filter(
+            _.get(response, "data.result.list", []),
+            (symbol) => symbol.contractType === "LinearPerpetual"
+          );
+
+          const pairs = _.map(perpetualContracts, (contract) => {
+            return {
+              pair: contract.symbol,
+              baseAsset: contract.baseCoin,
+              quoteAsset: contract.quoteCoin,
+              obj: contract,
+            };
+          });
+
+          const pair =
+            _.find(
+              pairs,
+              (pair) =>
+                pair.baseAsset === selectedTradingPair.baseAsset &&
+                pair.quoteAsset === selectedTradingPair.quoteAsset
+            ) || _.first(pairs);
+
+          !cancelled && setTradingPairs([...pairs]);
+          !cancelled && setFilteredTradingPairs([...pairs]);
+          !cancelled && setSelectedTradingPair(pair);
+        })
+        .catch((error) => console.log(error));
+
     return () => {
       cancelled = true;
     };
@@ -233,7 +296,8 @@ const PositionCalculator = () => {
       (exchange === "Binance" && `wss://stream.binance.com:9443/ws`) ||
       (exchange === "Mexc" && `wss://contract.mexc.com/ws`) ||
       (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`) ||
-      (exchange === "Gate.io" && `wss://fx-ws.gateio.ws/v4/ws/usdt`);
+      (exchange === "Gate.io" && `wss://fx-ws.gateio.ws/v4/ws/usdt`) ||
+      (exchange === "Bybit" && `wss://stream.bybit.com/v5/public/linear`);
 
     const { baseAsset, quoteAsset } = selectedTradingPair;
 
@@ -241,7 +305,8 @@ const PositionCalculator = () => {
       (exchange === "Binance" && _.toLower(`${baseAsset}${quoteAsset}`)) ||
       (exchange === "Mexc" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
       (exchange === "WooX" && _.toUpper(`PERP_${baseAsset}_${quoteAsset}`)) ||
-      (exchange === "Gate.io" && _.toUpper(`${baseAsset}_${quoteAsset}`));
+      (exchange === "Gate.io" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
+      (exchange === "Bybit" && selectedTradingPair.pair);
 
     const socket = new WebSocket(socketAddress);
 
@@ -295,6 +360,16 @@ const PositionCalculator = () => {
             channel: "futures.tickers",
             event: "subscribe",
             payload: [pair],
+          })
+        );
+      },
+
+      Bybit: () => {
+        console.log("WebSocket Client Connected =>", exchange);
+        socket.send(
+          JSON.stringify({
+            op: "subscribe",
+            args: [`tickers.${pair}`],
           })
         );
       },
@@ -352,6 +427,20 @@ const PositionCalculator = () => {
         !mannualPrice && setLastPrice(price);
         setIsLoading(false);
       },
+
+      Bybit: (event) => {
+        console.log("Bybit =>", event.data);
+
+        const data = JSON.parse(event.data);
+        const topic = _.get(data, "topic", "");
+
+        if (topic !== `tickers.${pair}`) return;
+
+        const price = _.get(data, "data.lastPrice", -1);
+
+        !mannualPrice && price !== -1 && setLastPrice(price);
+        setIsLoading(false);
+      },
     };
 
     socket.onopen = onOpen[exchange];
@@ -361,6 +450,52 @@ const PositionCalculator = () => {
       socket.close();
     };
   }, [selectedTradingPair, mannualPrice, exchange]);
+
+  const takeTrade = async (side) => {
+    setIsLoading(true);
+
+    const tickSize = _.get(selectedTradingPair, "obj.priceFilter.tickSize", 0);
+    const qtyStep = _.get(selectedTradingPair, "obj.lotSizeFilter.qtyStep", 0);
+    const pair = _.get(selectedTradingPair, "pair", "");
+
+    const timestamp = Date.now();
+    try {
+      const params = {
+        api_key: "",
+        category: "linear",
+        symbol: pair,
+        isLeverage: 1,
+        orderType: "Limit",
+        qty: roundToSamePrecision(positionSize, qtyStep),
+        price: roundToSamePrecision(lastPrice, tickSize),
+        timeInForce: "GTC",
+        side,
+        stopLoss: roundToSamePrecision(stopLoss, tickSize),
+        timestamp,
+        recv_window: 20000,
+      };
+
+      const signature = generateSignature(params, "");
+      params.sign = signature;
+
+      const response = await axios({
+        withCredentials: true,
+        method: "POST",
+        url: `https://api.bybit.com/v5/order/create`,
+        data: params,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      console.log("response =>", response);
+
+      setIsLoading(false);
+    } catch (error) {
+      console.log("error =>", error);
+      setIsLoading(false);
+    }
+  };
 
   return (
     <section className="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -447,7 +582,7 @@ const PositionCalculator = () => {
                       </svg>
                     </div>
                     <input
-                      type="text"
+                      type="tel"
                       id="input-group-search"
                       className="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                       placeholder="Search Pair"
@@ -495,29 +630,32 @@ const PositionCalculator = () => {
                   className="h-34 px-3 py-3 overflow-y-auto text-sm text-gray-700 dark:text-gray-200"
                   aria-labelledby="dropdownSearchButton"
                 >
-                  {_.map(["Binance", "Mexc", "WooX", "Gate.io"], (exchange) => {
-                    return (
-                      <li
-                        key={exchange}
-                        onClick={() => {
-                          setExchange(exchange);
-                          const el = document.getElementById(
-                            "dropdownSearchButtonExchange"
-                          );
-                          el && el.click();
-                        }}
-                      >
-                        <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
-                          <label
-                            htmlFor="checkbox-item-11"
-                            className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
-                          >
-                            {exchange}
-                          </label>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {_.map(
+                    ["Binance", "Bybit", "Mexc", "WooX", "Gate.io"],
+                    (exchange) => {
+                      return (
+                        <li
+                          key={exchange}
+                          onClick={() => {
+                            setExchange(exchange);
+                            const el = document.getElementById(
+                              "dropdownSearchButtonExchange"
+                            );
+                            el && el.click();
+                          }}
+                        >
+                          <div className="flex items-center pl-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600">
+                            <label
+                              htmlFor="checkbox-item-11"
+                              className="w-full py-2 ml-2 text-sm font-medium text-gray-900 rounded dark:text-gray-300"
+                            >
+                              {exchange}
+                            </label>
+                          </div>
+                        </li>
+                      );
+                    }
+                  )}
                 </ul>
               </div>
 
@@ -647,6 +785,32 @@ const PositionCalculator = () => {
                   >
                     Copy
                   </button>
+                </div>
+                <div className="">
+                  <div className=" pt-5 flex  gap-7  justify-center">
+                    <button
+                      type="button"
+                      className="inline-flex items-center text-white bg-green-600 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
+                      onClick={(e) => {
+                        e.preventDefault();
+
+                        takeTrade("Buy");
+                      }}
+                    >
+                      Buy / Long
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // navigator.clipboard.writeText(positionSize);
+                        takeTrade("Sell");
+                      }}
+                    >
+                      Sell / Short
+                    </button>
+                  </div>
                 </div>
               </div>
             </form>
