@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { w3cwebsocket as WebSocket } from "websocket";
 import { gateioFutureContracts } from "./data";
 import CryptoJS from "crypto-js";
+import ConfirmTradeModal from "../components/confirmTradeModal";
 
 const getSelectedTradingPair = () => {
   const defaultPair = {
@@ -83,7 +84,7 @@ const PositionCalculator = () => {
     localStorage.getItem("exchange") || "Binance"
   );
   const [isLoading, setIsLoading] = useState(false);
-
+  const [side, setSide] = useState("Buy");
   const [apiCredentials, _setApiCredentials] = useState(getAPICredentials());
   const [apiCredentialsInp, setApiCredentialsInp] = useState({
     apiKey: "",
@@ -483,8 +484,6 @@ const PositionCalculator = () => {
     try {
       const { apiKey, apiSecret } = apiCredentials;
 
-      console.log("apiCredentials =>", apiCredentials);
-
       const params = {
         api_key: apiKey,
         // category: "linear",
@@ -819,34 +818,76 @@ const PositionCalculator = () => {
                     <div className=" pt-5 flex  gap-7  justify-center">
                       <button
                         type="button"
+                        data-modal-target="popup-modal"
+                        data-modal-toggle="popup-modal"
                         className="inline-flex items-center text-white bg-green-600 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
                         onClick={(e) => {
                           e.preventDefault();
 
-                          takeTrade("Buy");
+                          // takeTrade("Buy");
+                          setSide("Buy");
                         }}
                       >
                         Buy / Long
                       </button>
                       <button
+                        data-modal-target="authentication-modal"
+                        data-modal-toggle="authentication-modal"
                         type="button"
+                        class="text-blue-700 border border-blue-700 hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
+                      >
+                        {/* <svg
+                          aria-hidden="true"
+                          class="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M12 6v12m6-6H6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          ></path>
+                        </svg> */}
+                        <svg
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          class="w-5 h-5"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M12 6v12m6-6H6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          ></path>
+                        </svg>
+                        <span class="sr-only">Icon description</span>
+                      </button>
+                      <button
+                        type="button"
+                        data-modal-target="popup-modal"
+                        data-modal-toggle="popup-modal"
                         className="inline-flex items-center text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800"
                         onClick={(e) => {
                           e.preventDefault();
                           // navigator.clipboard.writeText(positionSize);
-                          takeTrade("Sell");
+                          // takeTrade("Sell");
+                          setSide("Sell");
                         }}
                       >
                         Sell / Short
                       </button>
-                      <button
+                      {/* <button
                         data-modal-target="authentication-modal"
                         data-modal-toggle="authentication-modal"
                         class="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                         type="button"
                       >
                         Add API
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 )}
@@ -993,6 +1034,23 @@ const PositionCalculator = () => {
           </div>
         </div>
       </div>
+
+      {/* <button
+       
+        class="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+        type="button"
+      >
+        Toggle modal
+      </button> */}
+
+      <ConfirmTradeModal
+        selectedTradingPair={selectedTradingPair}
+        lastPrice={lastPrice}
+        positionSize={positionSize}
+        stopLoss={stopLoss}
+        takeTrade={takeTrade}
+        side={side}
+      ></ConfirmTradeModal>
     </section>
   );
 };
