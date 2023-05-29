@@ -42,7 +42,7 @@ const setApiCredentials = (credentials) => {
 
 function roundToSamePrecision(number, sample) {
   // Get the number of decimal places in the sample number.
-  var decimalPlaces = sample.toString().split(".")[1].length;
+  const decimalPlaces = _(sample).toString().split(".")[1]?.length || 0;
 
   // Round the number to the same number of decimal places.
   return _.round(number, decimalPlaces);
@@ -609,7 +609,7 @@ const PositionCalculator = () => {
                       </svg>
                     </div>
                     <input
-                      type="tel"
+                      type="text"
                       id="input-group-search"
                       className="block w-full p-2 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                       placeholder="Search Pair"
