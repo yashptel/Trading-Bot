@@ -90,6 +90,7 @@ const PositionCalculator = () => {
     apiKey: "",
     apiSecret: "",
   });
+  const [timeDiff, setTimeDiff] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,7 +209,7 @@ const PositionCalculator = () => {
       !cancelled && setSelectedTradingPair(pair);
     }
 
-    exchange === "Bybit" &&
+    if (exchange === "Bybit") {
       axios
         .get("https://api.bybit.com/v5/market/instruments-info?category=linear")
         .then((response) => {
@@ -241,6 +242,17 @@ const PositionCalculator = () => {
           !cancelled && setSelectedTradingPair(pair);
         })
         .catch((error) => console.log(error));
+
+      axios
+        .get("https://api.bybit.com/v3/public/time")
+        .then((response) => {
+          console.log(response.data);
+          const serverTime = _.get(response, "data.time", 0);
+          const diff = serverTime - Date.now();
+          setTimeDiff(diff);
+        })
+        .catch((error) => console.log(error));
+    }
 
     return () => {
       cancelled = true;
@@ -480,7 +492,7 @@ const PositionCalculator = () => {
     const qtyStep = _.get(selectedTradingPair, "obj.lotSizeFilter.qtyStep", 0);
     const pair = _.get(selectedTradingPair, "pair", "");
 
-    const timestamp = Date.now();
+    const timestamp = Date.now() + timeDiff;
     try {
       const { apiKey, apiSecret } = apiCredentials;
 
@@ -834,37 +846,37 @@ const PositionCalculator = () => {
                         data-modal-target="authentication-modal"
                         data-modal-toggle="authentication-modal"
                         type="button"
-                        class="text-blue-700 border border-blue-700 hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
+                        className="text-blue-700 border border-blue-700 hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
                       >
                         {/* <svg
                           aria-hidden="true"
-                          class="w-5 h-5"
+                          className="w-5 h-5"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <path
                             d="M12 6v12m6-6H6"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           ></path>
                         </svg> */}
                         <svg
                           aria-hidden="true"
                           fill="none"
                           stroke="currentColor"
-                          stroke-width="1.5"
-                          class="w-5 h-5"
+                          strokeWidth="1.5"
+                          className="w-5 h-5"
                           viewBox="0 0 24 24"
                           xmlns="http://www.w3.org/2000/svg"
                         >
                           <path
                             d="M12 6v12m6-6H6"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           ></path>
                         </svg>
-                        <span class="sr-only">Icon description</span>
+                        <span className="sr-only">Icon description</span>
                       </button>
                       <button
                         type="button"
@@ -883,7 +895,7 @@ const PositionCalculator = () => {
                       {/* <button
                         data-modal-target="authentication-modal"
                         data-modal-toggle="authentication-modal"
-                        class="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                        className="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                         type="button"
                       >
                         Add API
@@ -922,43 +934,43 @@ const PositionCalculator = () => {
       {/* <!-- Main modal --> */}
       <div
         id="authentication-modal"
-        tabindex="-1"
+        tabIndex="-1"
         aria-hidden="true"
-        class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full"
+        className="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full"
       >
-        <div class="relative w-full max-w-md max-h-full">
+        <div className="relative w-full max-w-md max-h-full">
           {/* <!-- Modal content --> */}
-          <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+          <div className="relative bg-white rounded-lg shadow dark:bg-gray-700">
             <button
               type="button"
-              class="absolute top-3 right-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white"
+              className="absolute top-3 right-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white"
               data-modal-hide="authentication-modal"
               id="close-authentication-modal"
             >
               <svg
                 aria-hidden="true"
-                class="w-5 h-5"
+                className="w-5 h-5"
                 fill="currentColor"
                 viewBox="0 0 20 20"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
-                  fill-rule="evenodd"
+                  fillRule="evenodd"
                   d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                  clip-rule="evenodd"
+                  clipRule="evenodd"
                 ></path>
               </svg>
-              <span class="sr-only">Close modal</span>
+              <span className="sr-only">Close modal</span>
             </button>
-            <div class="px-6 py-6 lg:px-8">
-              <h3 class="mb-4 text-xl font-medium text-gray-900 dark:text-white">
+            <div className="px-6 py-6 lg:px-8">
+              <h3 className="mb-4 text-xl font-medium text-gray-900 dark:text-white">
                 Add your Bybit API key
               </h3>
-              <form class="space-y-6" action="#">
+              <form className="space-y-6" action="#">
                 <div>
                   <label
-                    for="key"
-                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    htmlFor="key"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                   >
                     API Key
                   </label>
@@ -966,7 +978,7 @@ const PositionCalculator = () => {
                     type="text"
                     name="key"
                     id="key"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                     placeholder="key"
                     onChange={(e) => {
                       setApiCredentialsInp({
@@ -980,8 +992,8 @@ const PositionCalculator = () => {
                 </div>
                 <div>
                   <label
-                    for="password"
-                    class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    htmlFor="password"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                   >
                     Secret
                   </label>
@@ -991,7 +1003,7 @@ const PositionCalculator = () => {
                     name="secret"
                     id="secret"
                     placeholder="••••••••"
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                     onChange={(e) => {
                       setApiCredentialsInp({
                         ...apiCredentialsInp,
@@ -1005,7 +1017,7 @@ const PositionCalculator = () => {
 
                 <button
                   type="submit"
-                  class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                   onClick={(e) => {
                     e.preventDefault();
                     setApiCredentials({
@@ -1037,7 +1049,7 @@ const PositionCalculator = () => {
 
       {/* <button
        
-        class="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+        className="block text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
         type="button"
       >
         Toggle modal
