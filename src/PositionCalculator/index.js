@@ -5,6 +5,9 @@ import { w3cwebsocket as WebSocket } from "websocket";
 import { gateioFutureContracts } from "./data";
 import CryptoJS from "crypto-js";
 import ConfirmTradeModal from "../components/confirmTradeModal";
+import Toast from "../components/toast";
+
+const randomString = () => Math.random().toString(36).substring(7);
 
 const getSelectedTradingPair = () => {
   const defaultPair = {
@@ -91,6 +94,23 @@ const PositionCalculator = () => {
     apiSecret: "",
   });
   const [timeDiff, setTimeDiff] = useState(0);
+
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = ({ type, message }) => {
+    setToasts((toasts) => [
+      ...toasts,
+      {
+        id: randomString(),
+        type,
+        message,
+      },
+    ]);
+  };
+
+  const removeToast = (id) => {
+    setToasts((toasts) => _.filter(toasts, (toast) => toast.id !== id));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -213,8 +233,6 @@ const PositionCalculator = () => {
       axios
         .get("https://api.bybit.com/v5/market/instruments-info?category=linear")
         .then((response) => {
-          console.log(response.data);
-
           const perpetualContracts = _.filter(
             _.get(response, "data.result.list", []),
             (symbol) => symbol.contractType === "LinearPerpetual"
@@ -246,7 +264,6 @@ const PositionCalculator = () => {
       axios
         .get("https://api.bybit.com/v3/public/time")
         .then((response) => {
-          console.log(response.data);
           const serverTime = _.get(response, "data.time", 0);
           const diff = serverTime - Date.now();
           setTimeDiff(diff);
@@ -526,8 +543,24 @@ const PositionCalculator = () => {
           "Content-Type": "application/x-www-form-urlencoded",
         },
       });
+      // {"retCode":10001,"retMsg":"empty value: apiTimestamp[1685474109635] apiKey[] apiSignature[]","result":{},"retExtInfo":{},"time":1685474110152}
+      // {"retCode":130076,"retMsg":"params invalid","result":{},"retExtInfo":{},"time":1685474234660}
+      // {"retCode":0,"retMsg":"success","result":{"orderId":"51482870-0922-460c-a124-b92e875b2ad0","orderLinkId":""},"retExtInfo":{},"time":1685474269309}
 
-      console.log("response =>", response);
+      const retCode = _.get(response, "data.retCode", 0);
+      const retMsg = _.get(response, "data.retMsg", "");
+
+      if (retCode !== 0) {
+        addToast({
+          type: "error",
+          message: retMsg,
+        });
+      } else {
+        addToast({
+          type: "success",
+          message: "Order placed successfully",
+        });
+      }
 
       setIsLoading(false);
     } catch (error) {
@@ -928,6 +961,25 @@ const PositionCalculator = () => {
               </div>
             )}
           </div>
+        </div>
+
+        <div
+          // className="toast-container fixed inset-0 flex flex-col items-end justify-end px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end z-auto"
+
+          className="fixed right-0 bottom-0 flex flex-col items-end justify-end px-4 py-6 sm:p-6 sm:items-start sm:justify-end"
+          id="toast-container"
+        >
+          {_.map(toasts, ({ id, message, type }) => (
+            <Toast
+              id={id}
+              key={id}
+              message={message}
+              type={type}
+              onClose={() => {
+                removeToast(id);
+              }}
+            ></Toast>
+          ))}
         </div>
       </div>
 
