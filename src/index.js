@@ -14,7 +14,10 @@ root.render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
-          <Route path="/" element={<Navigate replace to="/position-calculator" />} />
+          <Route
+            path="/"
+            element={<Navigate replace to="/position-calculator" />}
+          />
           <Route path="/position-calculator" element={<PositionCalculator />} />
           <Route path="/winrate" element={<Winrate />} />
           <Route path="*" element={<NotFound />} />
