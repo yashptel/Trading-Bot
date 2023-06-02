@@ -78,6 +78,7 @@ const PositionCalculator = () => {
   const [filteredTradingPairs, setFilteredTradingPairs] = useState([]);
   const [lastPrice, setLastPrice] = useState(0);
   const [stopLoss, setStopLoss] = useState(0);
+  const [takeProfit, setTakeProfit] = useState(0);
   const [lossPerTrade, setLossPerTrade] = useState(
     localStorage.getItem("lossPerTrade") || 0
   );
@@ -528,6 +529,9 @@ const PositionCalculator = () => {
         recv_window: 20000,
       };
 
+      takeProfit !== 0 &&
+        (params.takeProfit = roundToSamePrecision(takeProfit, tickSize));
+
       const signature = generateSignature(params, apiSecret);
       params.sign = signature;
 
@@ -776,22 +780,45 @@ const PositionCalculator = () => {
                   </button>
                 </div>
               </div>
-              <div>
-                <label
-                  htmlFor="stopLoss"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Stop Loss
-                </label>
-                <input
-                  type="tel"
-                  name="stopLoss"
-                  id="stopLoss"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                  required=""
-                  value={stopLoss}
-                  onChange={(e) => handleInputChangeOnlyNumbers(e, setStopLoss)}
-                ></input>
+              <div className="flex gap-2">
+                <div>
+                  <label
+                    htmlFor="stopLoss"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Stop Loss
+                  </label>
+                  <input
+                    type="tel"
+                    name="stopLoss"
+                    id="stopLoss"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                    required=""
+                    value={stopLoss}
+                    onChange={(e) =>
+                      handleInputChangeOnlyNumbers(e, setStopLoss)
+                    }
+                  ></input>
+                </div>
+                <div>
+                  <label
+                    htmlFor="takeProfit"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Take Profit
+                  </label>
+                  <input
+                    type="tel"
+                    name="takeProfit"
+                    id="takeProfit"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                    required=""
+                    value={takeProfit}
+                    onChange={(e) =>
+                      handleInputChangeOnlyNumbers(e, setTakeProfit)
+                    }
+                  ></input>
+                </div>
               </div>
               <div>
                 <label
