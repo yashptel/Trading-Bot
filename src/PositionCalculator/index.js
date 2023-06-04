@@ -68,6 +68,23 @@ function generateSignature(params, apiSecret) {
   return signature;
 }
 
+function generateSignatureBinance(params, apiSecret) {
+  const keys = Object.keys(params);
+  const queryParams = [];
+
+  for (const key of keys) {
+    queryParams.push(`${key}=${params[key]}`);
+  }
+
+  const queryString = queryParams.join("&");
+
+  const signature = CryptoJS.HmacSHA256(queryString, apiSecret).toString(
+    CryptoJS.enc.Hex
+  );
+
+  return signature;
+}
+
 const PositionCalculator = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
 
@@ -117,7 +134,7 @@ const PositionCalculator = () => {
     let cancelled = false;
     setIsLoading(true);
 
-    exchange === "Binance" &&
+    if (exchange === "Binance") {
       axios
         .get("https://fapi.binance.com/fapi/v1/exchangeInfo")
         .then((response) => {
@@ -130,6 +147,7 @@ const PositionCalculator = () => {
             pair: contract.pair,
             baseAsset: contract.baseAsset,
             quoteAsset: contract.quoteAsset,
+            obj: contract,
           }));
 
           const pair =
@@ -145,6 +163,16 @@ const PositionCalculator = () => {
           !cancelled && setSelectedTradingPair(pair);
         })
         .catch((error) => console.log(error));
+
+      axios
+        .get("https://fapi.binance.com/fapi/v1/time")
+        .then((response) => {
+          const serverTime = _.toNumber(_.get(response, "data.serverTime"), 0);
+          const diff = serverTime - Date.now();
+          setTimeDiff(diff);
+        })
+        .catch((error) => console.log(error));
+    }
 
     exchange === "Mexc" &&
       axios
@@ -351,7 +379,8 @@ const PositionCalculator = () => {
       (exchange === "Mexc" && `wss://contract.mexc.com/ws`) ||
       (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`) ||
       (exchange === "Gate.io" && `wss://fx-ws.gateio.ws/v4/ws/usdt`) ||
-      (exchange === "Bybit" && `wss://stream.bybit.com/v5/public/linear`);
+      (exchange === "Bybit" && `wss://stream.bybit.com/v5/public/linear`) ||
+      (exchange === "OKX" && `wss://ws.okx.com:8443/ws/v5/public`);
 
     const { baseAsset, quoteAsset } = selectedTradingPair;
 
@@ -427,6 +456,31 @@ const PositionCalculator = () => {
           })
         );
       },
+
+      // {
+      //   "op": "subscribe",
+      //   "args": [
+      //     {
+      //       "channel": "tickers",
+      //       "instId": "LTC-USD-200327"
+      //     }
+      //   ]
+      // }
+
+      OKX: () => {
+        console.log("WebSocket Client Connected =>", exchange);
+        socket.send(
+          JSON.stringify({
+            op: "subscribe",
+            args: [
+              {
+                channel: "tickers",
+                instId: pair,
+              },
+            ],
+          })
+        );
+      },
     };
 
     const onMessage = {
@@ -493,6 +547,23 @@ const PositionCalculator = () => {
         !mannualPrice && price !== -1 && setLastPrice(price);
         setIsLoading(false);
       },
+
+      OKX: (event) => {
+        const data = JSON.parse(event.data);
+        const channel = _.get(data, "arg.channel", "");
+
+        if (channel !== "tickers") return;
+
+        const result = _.get(data, "data", []);
+        const ticker = _.find(result, { instId: pair });
+
+        if (!ticker) return;
+
+        const price = _.get(ticker, "last", 0);
+
+        !mannualPrice && setLastPrice(price);
+        setIsLoading(false);
+      },
     };
 
     socket.onopen = onOpen[exchange];
@@ -503,7 +574,130 @@ const PositionCalculator = () => {
     };
   }, [selectedTradingPair, mannualPrice, exchange]);
 
+  const takeTradeBinance = async ({
+    side,
+    positionSize,
+    stopLoss,
+    takeProfit,
+    price,
+  }) => {
+    const { apiKey, apiSecret } = apiCredentials;
+
+    const orders = {};
+    const timestamp = Date.now() + timeDiff;
+    side = _.toUpper(side);
+
+    const filters = _.get(selectedTradingPair, "obj.filters", []);
+    const quantityPrecision = _.toNumber(
+      _.find(filters, {
+        filterType: "LOT_SIZE",
+      })?.stepSize
+    );
+    const pricePrecision = _.toNumber(
+      _.find(filters, {
+        filterType: "PRICE_FILTER",
+      })?.tickSize
+    );
+
+    orders.order = {
+      symbol: selectedTradingPair.pair,
+      side,
+      positionSide: side === "BUY" ? "LONG" : "SHORT",
+      type: "LIMIT",
+      quantity: roundToSamePrecision(positionSize, quantityPrecision),
+      price: roundToSamePrecision(price, pricePrecision),
+      timeInForce: "GTC",
+    };
+
+    if (stopLoss) {
+      orders.stopLoss = {
+        symbol: selectedTradingPair.pair,
+        side: side === "BUY" ? "SELL" : "BUY",
+        positionSide: side === "BUY" ? "LONG" : "SHORT",
+        type: "STOP_MARKET",
+        quantity: roundToSamePrecision(positionSize, quantityPrecision),
+        stopPrice: roundToSamePrecision(stopLoss, pricePrecision),
+        closePosition: false,
+        workingType: "MARK_PRICE",
+        timeInForce: "GTC",
+      };
+    }
+
+    if (takeProfit) {
+      orders.takeProfit = {
+        symbol: selectedTradingPair.pair,
+        side: side === "BUY" ? "SELL" : "BUY",
+        positionSide: side === "BUY" ? "LONG" : "SHORT",
+        type: "TAKE_PROFIT_MARKET",
+        quantity: roundToSamePrecision(positionSize, quantityPrecision),
+        stopPrice: roundToSamePrecision(takeProfit, pricePrecision),
+        closePosition: false,
+        workingType: "MARK_PRICE",
+        timeInForce: "GTC",
+      };
+    }
+
+    const keys = Object.keys(orders);
+
+    try {
+      setIsLoading(true);
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const order = {
+          ...orders[key],
+          recvWindow: 5000,
+          timestamp,
+        };
+        const signature = generateSignatureBinance(order, apiSecret);
+        const url = `https://fapi.binance.com/fapi/v1/order`;
+        const headers = {
+          "X-MBX-APIKEY": apiKey,
+        };
+
+        await axios.post(url, null, {
+          headers,
+          params: {
+            ...order,
+            signature,
+          },
+        });
+
+        addToast({
+          message: `Order (${
+            key === "order" ? "Entry" : key
+          }) placed successfully`,
+          type: "success",
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      const msg = _.get(error, "response.data.msg", "");
+      addToast({
+        message: msg,
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const takeTrade = async (side) => {
+    if (exchange === "Binance") {
+      return await takeTradeBinance({
+        side,
+        positionSize,
+        stopLoss,
+        takeProfit,
+        price: lastPrice,
+      });
+    }
+
+    if (exchange === "Bybit") {
+      return await takeTradeBybit(side);
+    }
+  };
+
+  const takeTradeBybit = async (side) => {
     setIsLoading(true);
 
     const tickSize = _.get(selectedTradingPair, "obj.priceFilter.tickSize", 0);
@@ -885,7 +1079,7 @@ const PositionCalculator = () => {
                     Copy
                   </button>
                 </div>
-                {exchange === "Bybit" && (
+                {_.includes(["Bybit", "Binance"], exchange) && (
                   <div className="">
                     <div className=" pt-5 flex  gap-7  justify-center">
                       <button
