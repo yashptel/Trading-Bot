@@ -388,7 +388,7 @@ const PositionCalculator = () => {
 
     const applicationId = "d280c0d0-a933-4fa1-8edc-d4dc10281759"; // woox
     const socketAddress =
-      (exchange === "Binance" && `wss://stream.binance.com:9443/ws`) ||
+      (exchange === "Binance" && `wss://fstream.binance.com/ws`) ||
       (exchange === "Mexc" && `wss://contract.mexc.com/ws`) ||
       (exchange === "WooX" && `wss://wss.woo.org/ws/stream/${applicationId}`) ||
       (exchange === "Gate.io" && `wss://fx-ws.gateio.ws/v4/ws/usdt`) ||
