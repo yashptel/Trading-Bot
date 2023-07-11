@@ -2,7 +2,7 @@ import _ from "lodash";
 import React from "react";
 
 export default function ConfirmTradeModal(props) {
-  const { selectedTradingPair, lastPrice, stopLoss, positionSize, side } =
+  const { selectedTradingPair, lastPrice, stopLoss, positionSize, side, type } =
     props;
 
   return (
@@ -35,7 +35,7 @@ export default function ConfirmTradeModal(props) {
           </button>
           <div className="p-6 text-center">
             <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
-              Limit {side} {selectedTradingPair.pair}
+              {type} {side} {selectedTradingPair.pair}
             </h3>
 
             <form>
@@ -43,7 +43,7 @@ export default function ConfirmTradeModal(props) {
               <div className="mb-5">
                 <div className="flex flex-col mb-2">
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    Limit Price
+                    {type === "Market" ? "Last Price" : "Limit Price"}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {lastPrice}

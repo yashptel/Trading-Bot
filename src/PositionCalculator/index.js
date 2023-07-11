@@ -110,6 +110,7 @@ const PositionCalculator = () => {
   const [lossPerTrade, setLossPerTrade] = useState(
     localStorage.getItem("lossPerTrade") || 0
   );
+  const [useMarketOrder, setUseMarketOrder] = useState(true);
   const [positionSize, setPositionSize] = useState(0);
   const [mannualPrice, setMannualPrice] = useState(false);
   const [exchange, setExchange] = useState(
@@ -616,11 +617,15 @@ const PositionCalculator = () => {
       symbol: selectedTradingPair.pair,
       side,
       positionSide: side === "BUY" ? "LONG" : "SHORT",
-      type: "LIMIT",
+      type: "MARKET",
       quantity: roundToSamePrecision(positionSize, quantityPrecision),
-      price: roundToSamePrecision(price, pricePrecision),
-      timeInForce: "GTC",
     };
+
+    if (!useMarketOrder) {
+      orders.order.type = "LIMIT";
+      orders.order.price = roundToSamePrecision(price, pricePrecision);
+      orders.order.timeInForce = "GTC";
+    }
 
     if (stopLoss) {
       orders.stopLoss = {
@@ -949,14 +954,14 @@ const PositionCalculator = () => {
                 >
                   {mannualPrice ? "Manual Price" : "Last Price"}
                 </label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-2">
                   <input
                     type="tel"
                     name="lastPrice"
                     id="lastPrice"
                     className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
                     value={lastPrice || 0}
-                    onClick={() => setMannualPrice(true)}
+                    onClick={() => !useMarketOrder && setMannualPrice(true)}
                     onChange={(e) => {
                       mannualPrice &&
                         handleInputChangeOnlyNumbers(e, setLastPrice);
@@ -986,7 +991,29 @@ const PositionCalculator = () => {
                     <span className="sr-only">Icon description</span>
                   </button>
                 </div>
+                {_.includes(["Bybit", "Binance"], exchange) && (
+                  <div class="flex items-center">
+                    <input
+                      id="default-checkbox"
+                      type="checkbox"
+                      value="1"
+                      checked={useMarketOrder}
+                      onChange={(e) => {
+                        setUseMarketOrder(e.target.checked);
+                        setMannualPrice(false);
+                      }}
+                      class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    ></input>
+                    <label
+                      for="default-checkbox"
+                      class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
+                    >
+                      Use Market Order on Last Price
+                    </label>
+                  </div>
+                )}
               </div>
+
               <div className="flex gap-2">
                 <div>
                   <label
@@ -1348,6 +1375,7 @@ const PositionCalculator = () => {
         stopLoss={stopLoss}
         takeTrade={takeTrade}
         side={side}
+        type={useMarketOrder ? "Market" : "Limit"}
       ></ConfirmTradeModal>
     </section>
   );
