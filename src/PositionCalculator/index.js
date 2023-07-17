@@ -636,7 +636,7 @@ const PositionCalculator = () => {
         quantity: roundToSamePrecision(positionSize, quantityPrecision),
         stopPrice: roundToSamePrecision(stopLoss, pricePrecision),
         closePosition: false,
-        workingType: "LAST_PRICE",
+        // workingType: "LAST_PRICE",
         timeInForce: "GTC",
       };
     }
@@ -650,7 +650,7 @@ const PositionCalculator = () => {
         quantity: roundToSamePrecision(positionSize, quantityPrecision),
         stopPrice: roundToSamePrecision(takeProfit, pricePrecision),
         closePosition: false,
-        workingType: "LAST_PRICE",
+        // workingType: "LAST_PRICE",
         timeInForce: "GTC",
       };
     }
