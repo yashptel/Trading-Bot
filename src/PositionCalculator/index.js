@@ -1119,6 +1119,12 @@ const PositionCalculator = () => {
                     Copy
                   </button>
                 </div>
+
+                <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                  ≈ {_.round(positionSize * lastPrice, 2) || 0}{" "}
+                  {selectedTradingPair.quoteAsset}
+                </p>
+
                 {_.includes(["Bybit", "Binance"], exchange) && (
                   <div className="">
                     <div className=" pt-5 flex  gap-7  justify-center">
