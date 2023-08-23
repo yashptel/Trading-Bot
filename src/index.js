@@ -6,6 +6,7 @@ import App from "./App";
 import "./index.css";
 import PositionCalculator from "./PositionCalculator";
 import Winrate from "./Winrate";
+import CopyTrade from "./CopyTrade";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -19,6 +20,7 @@ root.render(
             element={<Navigate replace to="/position-calculator" />}
           />
           <Route path="/position-calculator" element={<PositionCalculator />} />
+          <Route path="/copy-trade" element={<CopyTrade />} />
           <Route path="/winrate" element={<Winrate />} />
           <Route path="*" element={<NotFound />} />
         </Route>
