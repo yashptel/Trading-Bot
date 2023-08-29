@@ -114,6 +114,7 @@ const CopyTrade = () => {
   );
   const [useMarketOrder, setUseMarketOrder] = useState(true);
   const [positionSize, setPositionSize] = useState(0);
+  const [positionSizeMultiplier, setPositionSizeMultiplier] = useState(1.05);
   const [mannualPrice, setMannualPrice] = useState(false);
   const [exchange, setExchange] = useState(
     localStorage.getItem("exchange") || "Binance"
@@ -374,7 +375,8 @@ const CopyTrade = () => {
 
     const positionAmount = multiplier * Number(positionSizeMaster);
     const positionSize = positionAmount / Number(lastPrice);
-    !_.isNaN(positionSize) && setPositionSize(positionSize);
+    !_.isNaN(positionSize) &&
+      setPositionSize(positionSize * positionSizeMultiplier);
   }, [lastPrice, takeProfit, entryPriceMaster, positionSizeMaster]);
 
   useEffect(() => {
