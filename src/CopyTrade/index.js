@@ -757,7 +757,7 @@ const CopyTrade = () => {
       const response = await axios({
         withCredentials: true,
         method: "POST",
-        url: `https://api.bybit.com/contract/v3/private/copytrading/order/create`,
+        url: `https://api.bybit.com/contract/v3/private/order/create`,
         // url: `https://api-testnet.bybit.com/contract/v3/private/copytrading/order/create`,
         data: params,
         headers: {
