@@ -78,6 +78,23 @@ function generateSignature(params, apiSecret) {
 
   return signature;
 }
+function generateSignatureBybit({
+  params,
+  apiKey,
+  apiSecret,
+  timestamp,
+  recvWindow,
+}) {
+  const signRequestParams = JSON.stringify(params);
+
+  const paramsStr = timestamp + apiKey + recvWindow + signRequestParams;
+
+  const signature = CryptoJS.HmacSHA256(paramsStr, apiSecret).toString(
+    CryptoJS.enc.Hex
+  );
+
+  return signature;
+}
 
 function generateSignatureBinance(params, apiSecret) {
   const keys = Object.keys(params);
@@ -711,10 +728,91 @@ const PositionCalculator = () => {
     }
 
     if (exchange === "Bybit") {
-      return await takeTradeBybit(side);
+      return await takeTradeBybitV2(side);
     }
   };
 
+  const takeTradeBybitV2 = async (side) => {
+    setIsLoading(true);
+
+    const tickSize = _.get(selectedTradingPair, "obj.priceFilter.tickSize", 0);
+    const qtyStep = _.get(selectedTradingPair, "obj.lotSizeFilter.qtyStep", 0);
+    const pair = _.get(selectedTradingPair, "pair", "");
+
+    const timestamp = Date.now() + timeDiff;
+
+    try {
+      const { apiKey, apiSecret } = apiCredentials;
+
+      const params = {
+        category: "linear",
+        symbol: pair,
+        side,
+        orderType: "Market",
+        qty: roundToSamePrecision(positionSize, qtyStep).toString(),
+        timeInForce: "GTC",
+        positionIdx: side === "Buy" ? 1 : 2,
+      };
+
+      if (!useMarketOrder) {
+        params.orderType = "Limit";
+        params.price = roundToSamePrecision(lastPrice, tickSize).toString();
+      }
+
+      stopLoss !== 0 &&
+        (params.stopLoss = roundToSamePrecision(stopLoss, tickSize).toString());
+
+      takeProfit !== 0 &&
+        (params.takeProfit = roundToSamePrecision(
+          takeProfit,
+          tickSize
+        ).toString());
+
+      const signature = generateSignatureBybit({
+        params,
+        apiKey,
+        apiSecret,
+        timestamp,
+        recvWindow: 5000,
+      });
+
+      const response = await axios({
+        // withCredentials: true,
+        method: "POST",
+        url: `https://api.bybit.com/v5/order/create`,
+        // url: `https://api-testnet.bybit.com/v5/order/create`,
+        data: params,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "X-BAPI-SIGN-TYPE": "2",
+          "X-BAPI-API-KEY": apiKey,
+          "X-BAPI-TIMESTAMP": timestamp,
+          "X-BAPI-RECV-WINDOW": "5000",
+          "X-BAPI-SIGN": signature,
+        },
+      });
+
+      const retCode = _.get(response, "data.retCode", 0);
+      const retMsg = _.get(response, "data.retMsg", "");
+
+      if (retCode !== 0) {
+        addToast({
+          type: "error",
+          message: retMsg,
+        });
+      } else {
+        addToast({
+          type: "success",
+          message: "Order placed successfully",
+        });
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.log("error =>", error);
+      setIsLoading(false);
+    }
+  };
   const takeTradeBybit = async (side) => {
     setIsLoading(true);
 
