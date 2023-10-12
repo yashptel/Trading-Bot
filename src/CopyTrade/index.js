@@ -169,6 +169,34 @@ const CopyTrade = () => {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (exchange === "Binance") {
+      axios
+        .get("https://fapi.binance.com/fapi/v1/time")
+        .then((response) => {
+          const serverTime = _.toNumber(_.get(response, "data.serverTime"), 0);
+          const diff = serverTime - Date.now();
+          !cancelled && setTimeDiff(diff);
+        })
+        .catch((error) => console.log(error));
+    } else if (exchange === "Bybit") {
+      axios
+        .get("https://api.bybit.com/v3/public/time")
+        .then((response) => {
+          const serverTime = _.get(response, "data.time", 0);
+          const diff = serverTime - Date.now();
+          !cancelled && setTimeDiff(diff);
+        })
+        .catch((error) => console.log(error));
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [exchange, toasts]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loss =
       Math.abs(_.toNumber(lastPrice) - _.toNumber(stopLoss)) *
       _.toNumber(positionSize);
@@ -218,15 +246,6 @@ const CopyTrade = () => {
           !cancelled && setTradingPairs([...pairs]);
           !cancelled && setFilteredTradingPairs([...pairs]);
           !cancelled && setSelectedTradingPair(pair);
-        })
-        .catch((error) => console.log(error));
-
-      axios
-        .get("https://fapi.binance.com/fapi/v1/time")
-        .then((response) => {
-          const serverTime = _.toNumber(_.get(response, "data.serverTime"), 0);
-          const diff = serverTime - Date.now();
-          setTimeDiff(diff);
         })
         .catch((error) => console.log(error));
     }
@@ -344,15 +363,6 @@ const CopyTrade = () => {
           !cancelled && setTradingPairs([...pairs]);
           !cancelled && setFilteredTradingPairs([...pairs]);
           !cancelled && setSelectedTradingPair(pair);
-        })
-        .catch((error) => console.log(error));
-
-      axios
-        .get("https://api.bybit.com/v3/public/time")
-        .then((response) => {
-          const serverTime = _.get(response, "data.time", 0);
-          const diff = serverTime - Date.now();
-          setTimeDiff(diff);
         })
         .catch((error) => console.log(error));
     }
