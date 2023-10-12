@@ -1,5 +1,5 @@
 import axios from "axios";
-import _ from "lodash";
+import _, { last } from "lodash";
 import React, { useEffect, useState } from "react";
 import { w3cwebsocket as WebSocket } from "websocket";
 import { gateioFutureContracts } from "./data";
@@ -114,6 +114,8 @@ function generateSignatureBinance(params, apiSecret) {
 }
 
 const PositionCalculator = () => {
+  const [approxLoss, setApproxLoss] = useState(0);
+  const [approxProfit, setApproxProfit] = useState(0);
   const [tradingPairs, setTradingPairs] = useState([]);
 
   const [selectedTradingPair, setSelectedTradingPair] = useState(
@@ -145,6 +147,26 @@ const PositionCalculator = () => {
   const [timeDiff, setTimeDiff] = useState(0);
 
   const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loss =
+      Math.abs(_.toNumber(lastPrice) - _.toNumber(stopLoss)) *
+      _.toNumber(positionSize);
+    const profit =
+      Math.abs(_.toNumber(lastPrice) - _.toNumber(takeProfit)) *
+      _.toNumber(positionSize);
+
+    const negative =
+      (stopLoss > lastPrice && takeProfit > lastPrice) ||
+      (stopLoss < lastPrice && takeProfit < lastPrice);
+
+    !cancelled && setApproxLoss(-loss);
+    !cancelled && setApproxProfit(negative ? -profit : profit);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastPrice, stopLoss, takeProfit, positionSize]);
 
   const addToast = ({ type, message }) => {
     setToasts((toasts) => [
@@ -1131,6 +1153,10 @@ const PositionCalculator = () => {
                       handleInputChangeOnlyNumbers(e, setStopLoss)
                     }
                   ></input>
+                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                    ≈ {_.round(approxLoss, 2) || 0}{" "}
+                    {selectedTradingPair.quoteAsset}
+                  </p>
                 </div>
                 <div>
                   <label
@@ -1150,6 +1176,10 @@ const PositionCalculator = () => {
                       handleInputChangeOnlyNumbers(e, setTakeProfit)
                     }
                   ></input>
+                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                    ≈ {_.round(approxProfit, 2) || 0}{" "}
+                    {selectedTradingPair.quoteAsset}
+                  </p>
                 </div>
               </div>
               <div>

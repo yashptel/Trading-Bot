@@ -116,6 +116,8 @@ function generateSignatureBinance(params, apiSecret) {
 
 const CopyTrade = () => {
   const [tradingPairs, setTradingPairs] = useState([]);
+  const [approxLoss, setApproxLoss] = useState(0);
+  const [approxProfit, setApproxProfit] = useState(0);
 
   const [selectedTradingPair, setSelectedTradingPair] = useState(
     getSelectedTradingPair()
@@ -164,6 +166,26 @@ const CopyTrade = () => {
   const removeToast = (id) => {
     setToasts((toasts) => _.filter(toasts, (toast) => toast.id !== id));
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loss =
+      Math.abs(_.toNumber(lastPrice) - _.toNumber(stopLoss)) *
+      _.toNumber(positionSize);
+    const profit =
+      Math.abs(_.toNumber(lastPrice) - _.toNumber(takeProfit)) *
+      _.toNumber(positionSize);
+
+    const negative =
+      (stopLoss > lastPrice && takeProfit > lastPrice) ||
+      (stopLoss < lastPrice && takeProfit < lastPrice);
+
+    !cancelled && setApproxLoss(-loss);
+    !cancelled && setApproxProfit(negative ? -profit : profit);
+    return () => {
+      cancelled = true;
+    };
+  }, [lastPrice, stopLoss, takeProfit, positionSize]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1138,6 +1160,10 @@ const CopyTrade = () => {
                       handleInputChangeOnlyNumbers(e, setStopLoss)
                     }
                   ></input>
+                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                    ≈ {_.round(approxLoss, 2) || 0}{" "}
+                    {selectedTradingPair.quoteAsset}
+                  </p>
                 </div>
                 <div>
                   <label
@@ -1157,41 +1183,11 @@ const CopyTrade = () => {
                       handleInputChangeOnlyNumbers(e, setTakeProfit)
                     }
                   ></input>
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="lossPerTrade"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Loss Per Trade
-                </label>
-                <input
-                  type="tel"
-                  name="lossPerTrade"
-                  id="lossPerTrade"
-                  className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                  value={lossPerTrade}
-                  prefix="$"
-                  onChange={(e) =>
-                    handleInputChangeOnlyNumbers(e, setLossPerTrade)
-                  }
-                ></input>
 
-                <div className="mt-1.5">
-                  {_.map([1, 2, 3, 5, 9, 14, 21, 29], (loss) => {
-                    // {_.map([5, 10, 14, 19, 24, 29], (loss) => {
-                    return (
-                      <span
-                        className="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
-                        onClick={() => {
-                          setLossPerTrade(loss);
-                        }}
-                      >
-                        ${loss}
-                      </span>
-                    );
-                  })}
+                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                    ≈ {_.round(approxProfit, 2) || 0}{" "}
+                    {selectedTradingPair.quoteAsset}
+                  </p>
                 </div>
               </div>
 
