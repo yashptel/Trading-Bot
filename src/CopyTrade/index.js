@@ -6,6 +6,7 @@ import { gateioFutureContracts } from "./data";
 import CryptoJS from "crypto-js";
 import ConfirmTradeModal from "../components/confirmTradeModal";
 import Toast from "../components/toast";
+import okx from "../trade/okx";
 
 const randomString = () => Math.random().toString(36).substring(7);
 
@@ -28,6 +29,7 @@ const getAPICredentials = (exchange) => {
   const defaultCredentials = {
     apiKey: "",
     apiSecret: "",
+    passphrase: "",
   };
 
   try {
@@ -147,6 +149,7 @@ const CopyTrade = () => {
   const [apiCredentialsInp, setApiCredentialsInp] = useState({
     apiKey: "",
     apiSecret: "",
+    passphrase: "",
   });
   const [timeDiff, setTimeDiff] = useState(0);
 
@@ -367,6 +370,48 @@ const CopyTrade = () => {
         .catch((error) => console.log(error));
     }
 
+    if (exchange === "OKX") {
+      okx
+        .getSwapInstruments()
+        .then((response) => {
+          const perpetualContracts = _.filter(
+            _.get(response, "body.data", []),
+            (symbol) => symbol.instType === "SWAP"
+          );
+
+          const pairs = _.map(perpetualContracts, (contract) => {
+            if (contract.ctType === "inverse") {
+              return {
+                pair: contract.instId,
+                baseAsset: contract.quoteCcy || contract.settleCcy,
+                quoteAsset: contract.baseCcy || contract.ctValCcy,
+                obj: contract,
+              };
+            }
+
+            return {
+              pair: contract.instId,
+              baseAsset: contract.baseCcy || contract.ctValCcy,
+              quoteAsset: contract.quoteCcy || contract.settleCcy,
+              obj: contract,
+            };
+          });
+
+          const pair =
+            _.find(
+              pairs,
+              (pair) =>
+                pair.baseAsset === selectedTradingPair.baseAsset &&
+                pair.quoteAsset === selectedTradingPair.quoteAsset
+            ) || _.first(pairs);
+
+          !cancelled && setTradingPairs([...pairs]);
+          !cancelled && setFilteredTradingPairs([...pairs]);
+          !cancelled && setSelectedTradingPair(pair);
+        })
+        .catch((error) => console.log(error));
+    }
+
     return () => {
       cancelled = true;
     };
@@ -427,7 +472,13 @@ const CopyTrade = () => {
     const positionSize = positionAmount / Number(lastPrice);
     !_.isNaN(positionSize) &&
       setPositionSize(positionSize * positionSizeMultiplier);
-  }, [lastPrice, takeProfit, entryPriceMaster, positionSizeMaster]);
+  }, [
+    lastPrice,
+    takeProfit,
+    entryPriceMaster,
+    positionSizeMaster,
+    positionSizeMultiplier,
+  ]);
 
   useEffect(() => {
     const term = _.replace(searchTerm, /[^a-zA-Z0-9]/g, "");
@@ -458,7 +509,8 @@ const CopyTrade = () => {
       (exchange === "Mexc" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
       (exchange === "WooX" && _.toUpper(`PERP_${baseAsset}_${quoteAsset}`)) ||
       (exchange === "Gate.io" && _.toUpper(`${baseAsset}_${quoteAsset}`)) ||
-      (exchange === "Bybit" && selectedTradingPair.pair);
+      (exchange === "Bybit" && selectedTradingPair.pair) ||
+      (exchange === "OKX" && selectedTradingPair.pair);
 
     const socket = new WebSocket(socketAddress);
 
@@ -763,10 +815,37 @@ const CopyTrade = () => {
         takeProfit,
         price: lastPrice,
       });
-    }
-
-    if (exchange === "Bybit") {
+    } else if (exchange === "Bybit") {
       return await takeTradeBybitV2(side);
+    } else if (exchange === "OKX") {
+      try {
+        setIsLoading(true);
+        const response = await okx.takeTrade({
+          side,
+          positionSize,
+          stopLoss,
+          takeProfit,
+          price: lastPrice,
+          selectedTradingPair,
+          apiCredentials,
+          orderType: useMarketOrder ? "Market" : "Limit",
+        });
+
+        addToast({
+          type: response.sCode === "0" ? "success" : "error",
+          message:
+            response.sCode === "0"
+              ? "Order placed successfully"
+              : response.sMsg,
+        });
+      } catch (error) {
+        addToast({
+          type: "error",
+          message: _.get(error, "response.data.msg", ""),
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -1056,7 +1135,7 @@ const CopyTrade = () => {
                   aria-labelledby="dropdownSearchButton"
                 >
                   {_.map(
-                    ["Binance", "Bybit", "Mexc", "WooX", "Gate.io"],
+                    ["Binance", "Bybit", "Mexc", "WooX", "Gate.io", "OKX"],
                     (exchange) => {
                       return (
                         <li
@@ -1128,7 +1207,7 @@ const CopyTrade = () => {
                     <span className="sr-only">Icon description</span>
                   </button>
                 </div>
-                {_.includes(["Bybit", "Binance"], exchange) && (
+                {_.includes(["Bybit", "Binance", "OKX"], exchange) && (
                   <div class="flex items-center">
                     <input
                       id="default-checkbox"
@@ -1294,7 +1373,7 @@ const CopyTrade = () => {
                   {selectedTradingPair.quoteAsset}
                 </p>
 
-                {_.includes(["Bybit", "Binance"], exchange) && (
+                {_.includes(["Bybit", "Binance", "OKX"], exchange) && (
                   <div className="">
                     <div className=" pt-5 flex  gap-7  justify-center">
                       <button
@@ -1503,6 +1582,33 @@ const CopyTrade = () => {
                   ></input>
                 </div>
 
+                {exchange === "OKX" && (
+                  <div>
+                    <label
+                      htmlFor="passphrase"
+                      className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                    >
+                      Passphrase
+                    </label>
+                    <input
+                      autoComplete="disabled"
+                      type="password"
+                      name="passphrase"
+                      id="passphrase"
+                      placeholder="••••••••"
+                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                      onChange={(e) => {
+                        setApiCredentialsInp({
+                          ...apiCredentialsInp,
+                          passphrase: e.target.value,
+                        });
+                      }}
+                      value={apiCredentialsInp.passphrase}
+                      required
+                    ></input>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
@@ -1519,6 +1625,7 @@ const CopyTrade = () => {
                     setApiCredentialsInp({
                       apiKey: "",
                       apiSecret: "",
+                      passphrase: "",
                     });
 
                     const el = document.getElementById(
