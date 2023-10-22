@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-
   input,
   textarea,
   a {
@@ -21,9 +20,34 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  .tabs-group-custom[role="tablist"] {
+    flex-wrap: nowrap;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.25rem 0.25rem;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .tabs-group-custom div[role="tabpanel"] {
+    display: none;
+  }
+
+  .tabs-group-custom button {
+    padding: 0.25rem 0.25rem;
+    border-radius: 0.25rem 0.25rem;
+    flex: 1 1 auto;
+    font-weight: normal;
+  }
+
   @media screen and (max-width: 342px) {
     .hide-narrow-screen {
       display: none !important;
+    }
+  }
+
+  @media screen and (max-width: 451px) {
+    .tabs-group-custom button {
+      font-size: smaller;
     }
   }
 }

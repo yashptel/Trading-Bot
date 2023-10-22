@@ -7,6 +7,7 @@ import CryptoJS from "crypto-js";
 import ConfirmTradeModal from "../components/confirmTradeModal";
 import Toast from "../components/toast";
 import okx from "../trade/okx";
+import { Tabs } from "flowbite-react";
 
 const randomString = () => Math.random().toString(36).substring(7);
 
@@ -119,6 +120,8 @@ const PositionCalculator = () => {
   const [approxLoss, setApproxLoss] = useState(0);
   const [approxProfit, setApproxProfit] = useState(0);
   const [tradingPairs, setTradingPairs] = useState([]);
+  const [selectedTakeProfitOption, setSelectedTakeProfitOption] = useState(0);
+  const [riskRewardRatio, setRiskRewardRatio] = useState(0);
 
   const [selectedTradingPair, setSelectedTradingPair] = useState(
     getSelectedTradingPair()
@@ -150,6 +153,35 @@ const PositionCalculator = () => {
   const [timeDiff, setTimeDiff] = useState(0);
 
   const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (selectedTakeProfitOption === 0) {
+      const rr =
+        Math.abs(Number(takeProfit) - Number(lastPrice)) /
+        Math.abs(Number(stopLoss) - Number(lastPrice));
+      !cancelled && setRiskRewardRatio(_.round(rr, 2));
+    }
+
+    if (selectedTakeProfitOption === 1) {
+      const loss = Math.abs(Number(stopLoss) - Number(lastPrice));
+      const tp =
+        Number(lastPrice) +
+        loss * riskRewardRatio * (stopLoss > lastPrice ? -1 : 1);
+      !cancelled && setTakeProfit(_.round(tp, 4));
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    riskRewardRatio,
+    takeProfit,
+    stopLoss,
+    lastPrice,
+    selectedTakeProfitOption,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1242,27 +1274,83 @@ const PositionCalculator = () => {
                   </p>
                 </div>
                 <div>
-                  <label
-                    htmlFor="takeProfit"
-                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                  >
-                    Take Profit
-                  </label>
-                  <input
-                    type="tel"
-                    name="takeProfit"
-                    id="takeProfit"
-                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                    required=""
-                    value={takeProfit}
-                    onChange={(e) =>
-                      handleInputChangeOnlyNumbers(e, setTakeProfit)
-                    }
-                  ></input>
-                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
-                    ≈ {_.round(approxProfit, 2) || 0}{" "}
-                    {selectedTradingPair.quoteAsset}
-                  </p>
+                  {selectedTakeProfitOption === 0 && (
+                    <>
+                      <label
+                        htmlFor="takeProfit"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Take Profit
+                      </label>
+                      <input
+                        type="tel"
+                        name="takeProfit"
+                        id="takeProfit"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                        required=""
+                        value={takeProfit}
+                        onChange={(e) =>
+                          handleInputChangeOnlyNumbers(e, setTakeProfit)
+                        }
+                      ></input>
+                      <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                        ≈ {_.round(approxProfit, 2) || 0}{" "}
+                        {selectedTradingPair.quoteAsset}
+                        {approxProfit > 0 && (
+                          <span className="text-green-500">
+                            {" "}
+                            ({_.round(riskRewardRatio, 2) || 0} R:R)
+                          </span>
+                        )}
+                      </p>
+                    </>
+                  )}
+                  {selectedTakeProfitOption === 1 && (
+                    <>
+                      <label
+                        htmlFor="riskRewardRatio"
+                        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                      >
+                        Risk Reward Ratio
+                      </label>
+                      <input
+                        type="tel"
+                        name="riskRewardRatio"
+                        id="riskRewardRatio"
+                        className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
+                        required=""
+                        value={riskRewardRatio}
+                        onChange={(e) =>
+                          handleInputChangeOnlyNumbers(e, setRiskRewardRatio)
+                        }
+                      ></input>
+                      <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                        ≈ {_.round(approxProfit, 2) || 0}{" "}
+                        {
+                          <span className="text-green-500">
+                            {" "}
+                            ( TP @ {_.round(takeProfit, 2) || 0})
+                          </span>
+                        }
+                      </p>
+                    </>
+                  )}
+
+                  <div className="-mb-10 my-2">
+                    <Tabs.Group
+                      onActiveTabChange={(index) => {
+                        setSelectedTakeProfitOption(index);
+                      }}
+                      aria-label="Pills"
+                      style="pills"
+                      className="tabs-group-custom"
+                    >
+                      <Tabs.Item title="Manual TP">
+                        <p></p>
+                      </Tabs.Item>
+                      <Tabs.Item title="Based on R:R"></Tabs.Item>
+                    </Tabs.Group>
+                  </div>
                 </div>
               </div>
               <div>
