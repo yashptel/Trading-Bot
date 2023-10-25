@@ -100,7 +100,7 @@ export const takeTrade = async (data) => {
     );
 
     preparedData.tpTriggerPx = tpPx;
-    preparedData.tpOrdPx = tpPx;
+    preparedData.tpOrdPx = -1; // Market order
   }
 
   if (data.stopLoss) {
