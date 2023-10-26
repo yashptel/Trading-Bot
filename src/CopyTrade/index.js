@@ -187,7 +187,9 @@ const CopyTrade = () => {
       const loss = Math.abs(Number(stopLoss) - Number(lastPrice));
       const tp =
         Number(lastPrice) +
-        loss * riskRewardRatio * (stopLoss > lastPrice ? -1 : 1);
+        loss *
+          riskRewardRatio *
+          (Number(stopLoss) > Number(lastPrice) ? -1 : 1);
       !cancelled && setTakeProfit(_.round(tp, 4));
     }
 
@@ -239,9 +241,11 @@ const CopyTrade = () => {
       Math.abs(_.toNumber(lastPrice) - _.toNumber(takeProfit)) *
       _.toNumber(positionSize);
 
-    const negative =
-      (stopLoss > lastPrice && takeProfit > lastPrice) ||
-      (stopLoss < lastPrice && takeProfit < lastPrice);
+    const sl = _.toNumber(stopLoss);
+    const tp = _.toNumber(takeProfit);
+    const lp = _.toNumber(lastPrice);
+
+    const negative = (sl > lp && tp > lp) || (sl < lp && tp < lp);
 
     !cancelled && setApproxLoss(-loss);
     !cancelled && setApproxProfit(negative ? -profit : profit);
