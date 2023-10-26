@@ -5,6 +5,7 @@ import "./App.css";
 import { COMPANY_NAME } from "./constants";
 
 import { initFlowbite } from "flowbite";
+import Footer from "./components/footer";
 
 const App = () => {
   useEffect(() => {
@@ -24,7 +25,10 @@ const App = () => {
           { name: "keywords", content: "home, page" },
         ]}
       />
+
       <Outlet />
+
+      <Footer />
     </div>
   );
 };
