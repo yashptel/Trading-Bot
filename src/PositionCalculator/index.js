@@ -7,7 +7,9 @@ import CryptoJS from "crypto-js";
 import ConfirmTradeModal from "../components/confirmTradeModal";
 import Toast from "../components/toast";
 import okx from "../trade/okx";
-import { Tabs } from "flowbite-react";
+import { Dropdown, Tabs } from "flowbite-react";
+import SettingsModal from "../components/settingsModal";
+import { getAPICredentialsList } from "../components/store";
 
 const randomString = () => Math.random().toString(36).substring(7);
 
@@ -50,12 +52,7 @@ const getAPICredentials = (exchange) => {
   }
 };
 
-const setApiCredentials = (exchange, credentials) => {
-  localStorage.setItem(
-    `apiCredentials-${exchange}`,
-    JSON.stringify(credentials)
-  );
-};
+const setApiCredentials = (exchange, credentials) => {};
 
 function roundToSamePrecision(number, sample) {
   // Get the number of decimal places in the sample number.
@@ -145,6 +142,11 @@ const PositionCalculator = () => {
   const [apiCredentials, _setApiCredentials] = useState(
     getAPICredentials(exchange)
   );
+
+  const [apiCredentialsList, setApiCredentialsList] = useState(
+    getAPICredentialsList(exchange)
+  );
+
   const [apiCredentialsInp, setApiCredentialsInp] = useState({
     apiKey: "",
     apiSecret: "",
@@ -1033,7 +1035,7 @@ const PositionCalculator = () => {
               Position Size Calculator
             </h1>
             <form className="space-y-4 md:space-y-6" action="#">
-              <div className="w-full flex justify-between">
+              <div className="w-full flex gap-2">
                 <button
                   id="dropdownSearchButton"
                   data-dropdown-toggle="dropdownSearch"
@@ -1062,7 +1064,7 @@ const PositionCalculator = () => {
                   id="dropdownSearchButtonExchange"
                   data-dropdown-toggle="dropdownSearchExchange"
                   data-dropdown-placement="bottom"
-                  className=" text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  className="ml-auto text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
                   type="button"
                 >
                   {exchange}
@@ -1081,6 +1083,41 @@ const PositionCalculator = () => {
                       d="M19 9l-7 7-7-7"
                     ></path>
                   </svg>
+                </button>
+
+                <button
+                  data-modal-target="settings-modal"
+                  data-modal-toggle="settings-modal"
+                  type="button"
+                  className="text-blue-700   rounded-lg  hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
+                >
+                  <svg
+                    class="w-6 h-6 text-gray-600 dark:text-white"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      stroke="currentColor"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7.75 4H19M7.75 4a2.25 2.25 0 0 1-4.5 0m4.5 0a2.25 2.25 0 0 0-4.5 0M1 4h2.25m13.5 6H19m-2.25 0a2.25 2.25 0 0 1-4.5 0m4.5 0a2.25 2.25 0 0 0-4.5 0M1 10h11.25m-4.5 6H19M7.75 16a2.25 2.25 0 0 1-4.5 0m4.5 0a2.25 2.25 0 0 0-4.5 0M1 16h2.25"
+                    />
+                  </svg>
+
+                  {/* <svg
+                    class="w-6 h-6 text-gray-600 dark:text-gray-400"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M18 7.5h-.423l-.452-1.09.3-.3a1.5 1.5 0 0 0 0-2.121L16.01 2.575a1.5 1.5 0 0 0-2.121 0l-.3.3-1.089-.452V2A1.5 1.5 0 0 0 11 .5H9A1.5 1.5 0 0 0 7.5 2v.423l-1.09.452-.3-.3a1.5 1.5 0 0 0-2.121 0L2.576 3.99a1.5 1.5 0 0 0 0 2.121l.3.3L2.423 7.5H2A1.5 1.5 0 0 0 .5 9v2A1.5 1.5 0 0 0 2 12.5h.423l.452 1.09-.3.3a1.5 1.5 0 0 0 0 2.121l1.415 1.413a1.5 1.5 0 0 0 2.121 0l.3-.3 1.09.452V18A1.5 1.5 0 0 0 9 19.5h2a1.5 1.5 0 0 0 1.5-1.5v-.423l1.09-.452.3.3a1.5 1.5 0 0 0 2.121 0l1.415-1.414a1.5 1.5 0 0 0 0-2.121l-.3-.3.452-1.09H18a1.5 1.5 0 0 0 1.5-1.5V9A1.5 1.5 0 0 0 18 7.5Zm-8 6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
+                  </svg> */}
+
+                  <span className="sr-only">Icon description</span>
                 </button>
               </div>
 
@@ -1186,6 +1223,27 @@ const PositionCalculator = () => {
                 </ul>
               </div>
 
+              <Dropdown
+                label={apiCredentials.accountName || "Select Account"}
+                dismissOnClick={true}
+              >
+                {_(apiCredentialsList)
+                  .filter((account) => account.exchange === exchange)
+                  .map((account) => {
+                    account.accountName = account.accountName || account.name;
+                    return (
+                      <Dropdown.Item
+                        key={account.id}
+                        onClick={() => {
+                          _setApiCredentials(account);
+                        }}
+                      >
+                        {account.accountName}
+                      </Dropdown.Item>
+                    );
+                  })
+                  .value()}
+              </Dropdown>
               <div>
                 <label
                   htmlFor="lastPrice"
@@ -1377,7 +1435,7 @@ const PositionCalculator = () => {
                 ></input>
 
                 <div className="mt-1.5">
-                  {_.map([1, 2, 3, 5, 9, 14, 21, 29], (loss) => {
+                  {_.map([1, 2, 3, 5, 9, 14, 21, 29], (loss, i) => {
                     // {_.map([5, 10, 14, 19, 24, 29], (loss) => {
                     return (
                       <span
@@ -1445,42 +1503,7 @@ const PositionCalculator = () => {
                       >
                         Buy / Long
                       </button>
-                      <button
-                        data-modal-target="authentication-modal"
-                        data-modal-toggle="authentication-modal"
-                        type="button"
-                        className="text-blue-700 border border-blue-700 hover:bg-blue-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center dark:border-blue-500 dark:text-blue-500 dark:hover:text-white dark:focus:ring-blue-800 dark:hover:bg-blue-500"
-                      >
-                        {/* <svg
-                          aria-hidden="true"
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12 6v12m6-6H6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          ></path>
-                        </svg> */}
-                        <svg
-                          aria-hidden="true"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          className="w-5 h-5"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12 6v12m6-6H6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          ></path>
-                        </svg>
-                        <span className="sr-only">Icon description</span>
-                      </button>
+
                       <button
                         type="button"
                         data-modal-target="popup-modal"
@@ -1713,6 +1736,8 @@ const PositionCalculator = () => {
         side={side}
         type={useMarketOrder ? "Market" : "Limit"}
       ></ConfirmTradeModal>
+
+      <SettingsModal></SettingsModal>
     </section>
   );
 };
