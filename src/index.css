@@ -37,6 +37,11 @@
     border-radius: 0.25rem 0.25rem;
     flex: 1 1 auto;
     font-weight: normal;
+    margin-left: 0 !important;
+  }
+
+  .tabs-group-custom button:focus {
+    box-shadow: none !important;
   }
 
   @media screen and (max-width: 342px) {

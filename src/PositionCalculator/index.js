@@ -8,6 +8,7 @@ import ConfirmTradeModal from "../components/confirmTradeModal";
 import Toast from "../components/toast";
 import okx from "../trade/okx";
 import { Tabs } from "flowbite-react";
+import { hideInformation } from "../Utils";
 
 const randomString = () => Math.random().toString(36).substring(7);
 
@@ -1341,7 +1342,20 @@ const PositionCalculator = () => {
                   )}
 
                   <div className="-mb-10 my-2">
-                    <Tabs.Group
+                    <Tabs
+                      theme={{
+                        tablist: {
+                          tabitem: {
+                            styles: {
+                              pills: {
+                                active: {
+                                  on: "bg-primary-700 text-white",
+                                },
+                              },
+                            },
+                          },
+                        },
+                      }}
                       onActiveTabChange={(index) => {
                         setSelectedTakeProfitOption(index);
                       }}
@@ -1353,7 +1367,7 @@ const PositionCalculator = () => {
                         <p></p>
                       </Tabs.Item>
                       <Tabs.Item title="Based on R:R"></Tabs.Item>
-                    </Tabs.Group>
+                    </Tabs>
                   </div>
                 </div>
               </div>
@@ -1586,7 +1600,7 @@ const PositionCalculator = () => {
             </button>
             <div className="px-6 py-6 lg:px-8">
               <h3 className="mb-4 text-xl font-medium text-gray-900 dark:text-white">
-                Add your Bybit API key
+                Add your {exchange} API key
               </h3>
               <form className="space-y-6" action="#">
                 <div>
@@ -1601,7 +1615,9 @@ const PositionCalculator = () => {
                     name="key"
                     id="key"
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
-                    placeholder="key"
+                    placeholder={
+                      hideInformation(apiCredentials.apiKey) || "key"
+                    }
                     onChange={(e) => {
                       setApiCredentialsInp({
                         ...apiCredentialsInp,
@@ -1624,7 +1640,9 @@ const PositionCalculator = () => {
                     type="password"
                     name="secret"
                     id="secret"
-                    placeholder="••••••••"
+                    placeholder={
+                      hideInformation(apiCredentials.apiSecret) || "*****"
+                    }
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                     onChange={(e) => {
                       setApiCredentialsInp({
