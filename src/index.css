@@ -40,6 +40,11 @@
     margin-left: 0 !important;
   }
 
+  .tabs-group-custom-sm button {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
   .tabs-group-custom button:focus {
     box-shadow: none !important;
   }

@@ -10,6 +10,20 @@ import okx from "../trade/okx";
 import { Tabs } from "flowbite-react";
 import { hideInformation } from "../Utils";
 
+const customTabTheme = {
+  tablist: {
+    tabitem: {
+      styles: {
+        pills: {
+          active: {
+            on: "bg-primary-700 text-white",
+          },
+        },
+      },
+    },
+  },
+};
+
 const randomString = () => Math.random().toString(36).substring(7);
 
 const getSelectedTradingPair = () => {
@@ -122,6 +136,9 @@ const PositionCalculator = () => {
   const [approxProfit, setApproxProfit] = useState(0);
   const [tradingPairs, setTradingPairs] = useState([]);
   const [selectedTakeProfitOption, setSelectedTakeProfitOption] = useState(0);
+  const [selectedLossPerTradeOption, setSelectedLossPerTradeOption] =
+    useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
   const [riskRewardRatio, setRiskRewardRatio] = useState(0);
 
   const [selectedTradingPair, setSelectedTradingPair] = useState(
@@ -135,6 +152,9 @@ const PositionCalculator = () => {
   const [lossPerTrade, setLossPerTrade] = useState(
     localStorage.getItem("lossPerTrade") || 0
   );
+
+  const [percentageLossPerTrade, setPercentageLossPerTrade] = useState(0);
+
   const [useMarketOrder, setUseMarketOrder] = useState(true);
   const [positionSize, setPositionSize] = useState(0);
   const [mannualPrice, setMannualPrice] = useState(false);
@@ -460,6 +480,40 @@ const PositionCalculator = () => {
     localStorage.setItem("lossPerTrade", lossPerTrade);
   }, [exchange, lossPerTrade, selectedTradingPair]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    if (selectedLossPerTradeOption != 1) {
+      return;
+    }
+
+    if (exchange != "OKX") {
+      setSelectedLossPerTradeOption(0);
+    }
+
+    if (exchange === "OKX") {
+      setIsLoading(true);
+      okx
+        .getAvailableBalance({
+          key: apiCredentials.apiKey,
+          secret: apiCredentials.apiSecret,
+          passphrase: apiCredentials.passphrase,
+          currency: selectedTradingPair.obj.settleCcy,
+        })
+        .then((response) => {
+          !cancelled && setAvailableBalance(response.available);
+        })
+        .catch((error) => console.log(error))
+        .finally(() => {
+          !cancelled && setIsLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [selectedLossPerTradeOption, exchange]);
+
   const handleInputChangeOnlyNumbers = (event, setFn) => {
     const value = event.target.value;
     const valid = /^\d*\.?\d*$/.test(value);
@@ -514,6 +568,11 @@ const PositionCalculator = () => {
     });
     setFilteredTradingPairs(res);
   }, [searchTerm, tradingPairs]);
+
+  useEffect(() => {
+    const loss = (percentageLossPerTrade / 100) * availableBalance;
+    setLossPerTrade(loss);
+  }, [percentageLossPerTrade, availableBalance]);
 
   useEffect(() => {
     !mannualPrice && setIsLoading(true);
@@ -1343,19 +1402,7 @@ const PositionCalculator = () => {
 
                   <div className="-mb-10 my-2">
                     <Tabs
-                      theme={{
-                        tablist: {
-                          tabitem: {
-                            styles: {
-                              pills: {
-                                active: {
-                                  on: "bg-primary-700 text-white",
-                                },
-                              },
-                            },
-                          },
-                        },
-                      }}
+                      theme={customTabTheme}
                       onActiveTabChange={(index) => {
                         setSelectedTakeProfitOption(index);
                       }}
@@ -1383,27 +1430,68 @@ const PositionCalculator = () => {
                   name="lossPerTrade"
                   id="lossPerTrade"
                   className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500"
-                  value={lossPerTrade}
-                  prefix="$"
-                  onChange={(e) =>
-                    handleInputChangeOnlyNumbers(e, setLossPerTrade)
+                  value={
+                    selectedLossPerTradeOption === 0
+                      ? lossPerTrade
+                      : percentageLossPerTrade
                   }
+                  prefix="$"
+                  onChange={(e) => {
+                    if (selectedLossPerTradeOption === 0) {
+                      handleInputChangeOnlyNumbers(e, setLossPerTrade);
+                    } else if (selectedLossPerTradeOption === 1) {
+                      handleInputChangeOnlyNumbers(
+                        e,
+                        setPercentageLossPerTrade
+                      );
+                    }
+                  }}
                 ></input>
 
-                <div className="mt-1.5">
-                  {_.map([1, 2, 3, 5, 9, 14, 21, 29], (loss) => {
-                    // {_.map([5, 10, 14, 19, 24, 29], (loss) => {
-                    return (
-                      <span
-                        className="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
-                        onClick={() => {
-                          setLossPerTrade(loss);
-                        }}
-                      >
-                        ${loss}
-                      </span>
-                    );
-                  })}
+                <div className="mt-1.5 flex justify-between">
+                  {selectedLossPerTradeOption == 0 && (
+                    <div>
+                      {_.map([1, 2, 3, 5, 9, 14, 21], (loss) => {
+                        // {_.map([5, 10, 14, 19, 24, 29], (loss) => {
+                        return (
+                          <span
+                            className="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-gray-700 dark:text-gray-400 border border-gray-300 hover:cursor-pointer hover:bg-gray-200"
+                            onClick={() => {
+                              setLossPerTrade(loss);
+                            }}
+                          >
+                            ${loss}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedLossPerTradeOption == 1 && (
+                    <div>
+                      <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                        ≈ {_.round(lossPerTrade, 2) || 0}{" "}
+                        {selectedTradingPair.quoteAsset} (Available Balance:{" "}
+                        {_.round(availableBalance, 2)})
+                      </p>
+                    </div>
+                  )}
+                  {exchange == "OKX" && (
+                    <Tabs
+                      theme={customTabTheme}
+                      onActiveTabChange={(index) => {
+                        setSelectedLossPerTradeOption(index);
+                      }}
+                      aria-label="Pills"
+                      style="pills"
+                      className="tabs-group-custom tabs-group-custom-sm"
+                    >
+                      <Tabs.Item title="USDT">
+                        <p></p>
+                      </Tabs.Item>
+                      <Tabs.Item title="%"></Tabs.Item>
+                    </Tabs>
+                  )}
                 </div>
               </div>
 
@@ -1667,7 +1755,9 @@ const PositionCalculator = () => {
                       type="password"
                       name="passphrase"
                       id="passphrase"
-                      placeholder="••••••••"
+                      placeholder={
+                        hideInformation(apiCredentials.passphrase) || "*****"
+                      }
                       className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
                       onChange={(e) => {
                         setApiCredentialsInp({

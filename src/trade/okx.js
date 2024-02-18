@@ -43,6 +43,56 @@ export const getSwapInstruments = async () => {
   return response.data;
 };
 
+export const getAccount = async (key, secret, passphrase) => {
+  const timestamp = new Date().toISOString();
+  const path = "/api/v5/account/balance";
+  const signature = signMessage(timestamp + "GET" + path, secret);
+  const response = await http.request({
+    method: "POST",
+    url: "/v1/proxy",
+    data: {
+      url: `${baseUrl}${path}`,
+      method: "GET",
+      headers: {
+        "OK-ACCESS-KEY": key,
+        "OK-ACCESS-SIGN": signature,
+        "OK-ACCESS-TIMESTAMP": timestamp,
+        "OK-ACCESS-PASSPHRASE": passphrase,
+        "x-simulated-trading": "1", // Remove this line to place real orders
+      },
+    },
+  });
+  return response.data;
+};
+
+export const getAvailableBalance = async ({
+  key,
+  secret,
+  passphrase,
+  currency,
+}) => {
+  const response = await getAccount(key, secret, passphrase);
+
+  const balances = _.get(response, "body.data[0].details", []);
+
+  const availableBalances = _.chain(balances)
+    .map((balance) => {
+      return {
+        currency: balance.ccy,
+        available: parseFloat(balance.availBal),
+      };
+    })
+    .keyBy("currency")
+    .value();
+
+  const balance = _.get(availableBalances, `${currency}`, {
+    currency: currency,
+    available: 0,
+  });
+
+  return balance;
+};
+
 export const placeOrder = async (data, key, secret, passphrase) => {
   const timestamp = new Date().toISOString();
   const path = "/api/v5/trade/order";
@@ -59,7 +109,7 @@ export const placeOrder = async (data, key, secret, passphrase) => {
         "OK-ACCESS-SIGN": signature,
         "OK-ACCESS-TIMESTAMP": timestamp,
         "OK-ACCESS-PASSPHRASE": passphrase,
-        // "x-simulated-trading": "1",
+        "x-simulated-trading": "1", // Remove this line to place real orders
       },
       body: data,
     },
@@ -127,6 +177,7 @@ const exportObject = {
   getSwapInstruments,
   placeOrder,
   takeTrade,
+  getAvailableBalance,
 };
 
 export default exportObject;
