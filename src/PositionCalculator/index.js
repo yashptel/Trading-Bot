@@ -940,7 +940,12 @@ const PositionCalculator = () => {
     const qtyStep = _.get(selectedTradingPair, "obj.lotSizeFilter.qtyStep", 0);
     const pair = _.get(selectedTradingPair, "pair", "");
 
-    const timestamp = Date.now() + timeDiff;
+    const response = await axios.get("https://api.bybit.com/v3/public/time");
+    const serverTime = _.get(response, "data.time", 0);
+    const diff = serverTime - Date.now();
+    setTimeDiff(diff);
+
+    const timestamp = Date.now() + diff;
 
     try {
       const { apiKey, apiSecret } = apiCredentials;
