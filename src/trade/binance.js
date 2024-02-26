@@ -134,6 +134,26 @@ class Binance extends Exchange {
     return _.get(response, "data.body.serverTime");
   }
 
+  async getAllTradingPairs() {
+    const response = await http.request({
+      method: "POST",
+      data: {
+        url: "https://fapi.binance.com/fapi/v1/exchangeInfo",
+        method: "GET",
+      },
+    });
+
+    return _(response)
+      .get("data.body.symbols")
+      .filter((item) => item.contractType === "PERPETUAL")
+      .map((item) => {
+        return {
+          ...item,
+          displayName: `${item.baseAsset}/${item.quoteAsset}`,
+        };
+      });
+  }
+
   /**
    * Generates a signature for the Binance API.
    * @param {Object} params The parameters to sign.

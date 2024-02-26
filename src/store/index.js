@@ -39,6 +39,7 @@ const initialState = {
     isSettingsOpen: false,
     isLoading: false,
     toasts: [],
+    exchangeClient: null,
   },
 };
 
@@ -55,16 +56,6 @@ const persistConfig = {
   ],
   blacklist: ["temporaryState"],
 };
-
-// const API_CREDENTIALS = "API_CREDENTIALS";
-
-// const addAPICredentialsReducer = (state = initialState, action) => {
-//   switch (action.type) {
-
-//     default:
-//       return state;
-//   }
-// };
 
 const stateReducer = (state = initialState, action) => {
   switch (action.type) {

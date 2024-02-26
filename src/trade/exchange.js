@@ -71,6 +71,10 @@ class Exchange {
     throw new Error("Method not implemented.");
   }
 
+  async getAllTradingPairs() {
+    throw new Error("Method not implemented.");
+  }
+
   /**
    * Rounds a number to the same precision as a sample number.
    * @param {number} number - The number to round.

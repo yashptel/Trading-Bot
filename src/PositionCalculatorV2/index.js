@@ -54,30 +54,17 @@ const PositionCalculatorV2 = (props) => {
           <Dropdown
             id="trading-pair"
             options={{
-              key: "key",
-              displayText: "name",
-              value: "value",
-              searchKey: "name",
+              key: "symbol",
+              displayText: "displayName",
+              value: "symbol",
+              searchKey: "symbol",
             }}
             enableSearch={true}
             selectedOption={props.selectedPair}
-            dropdownOptions={[
-              {
-                key: "1",
-                name: "BTC/USDT",
-                value: "BTC/USDT",
-              },
-              {
-                key: "2",
-                name: "ETH/USDT",
-                value: "ETH/USDT",
-              },
-              {
-                key: "3",
-                name: "BNB/USDT",
-                value: "BNB/USDT",
-              },
-            ]}
+            onChange={(row) => {
+              props.updateStateFromLocalStorage({ selectedPair: row });
+            }}
+            dropdownOptions={props.temporaryState?.tradingPairs || []}
           />
           <div className="flex gap-2">
             <Dropdown

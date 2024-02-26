@@ -57,8 +57,8 @@ const initialForm = {
   exchange: config.exchanges[0].value,
   accountName: "",
   apiKey: "",
-  apiSecret: "",
-  apiPassphrase: "",
+  secret: "",
+  passphrase: "",
 };
 
 const SettingsModal = (props) => {
@@ -316,9 +316,9 @@ const SettingsModal = (props) => {
                             placeholder="Secret"
                             required=""
                             onChange={(e) => {
-                              setForm({ ...form, apiSecret: e.target.value });
+                              setForm({ ...form, secret: e.target.value });
                             }}
-                            value={form.apiSecret}
+                            value={form.secret}
                           ></input>
                         </div>
                         <div class="col-span-full">
@@ -338,10 +338,10 @@ const SettingsModal = (props) => {
                             onChange={(e) => {
                               setForm({
                                 ...form,
-                                apiPassphrase: e.target.value,
+                                passphrase: e.target.value,
                               });
                             }}
-                            value={form.apiPassphrase}
+                            value={form.passphrase}
                           ></input>
                         </div>
                       </div>
@@ -413,6 +413,12 @@ const SettingsModal = (props) => {
                             <th scope="col" class="px-6 py-3">
                               Key
                             </th>
+                            <th scope="col" class="px-6 py-3">
+                              Secret
+                            </th>
+                            <th scope="col" class="px-6 py-3">
+                              Passphrase
+                            </th>
                             {/* <th scope="col" class="px-6 py-3">
                           <span class="sr-only"></span>
                         </th> */}
@@ -438,6 +444,14 @@ const SettingsModal = (props) => {
                               </td>
                               <td class="px-6 py-4">
                                 {hideInformation(item.apiKey)}
+                              </td>
+                              <td class="px-6 py-4">
+                                {hideInformation(item.secret)}
+                              </td>
+                              <td class="px-6 py-4">
+                                {item.passphrase
+                                  ? hideInformation(item.secret)
+                                  : "-"}
                               </td>
 
                               <td class="px-6 py-4 text-right">

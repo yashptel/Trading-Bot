@@ -20,7 +20,47 @@ const App = (props) => {
   }, []);
 
   useEffect(() => {
-    exchanges[props?.exchange?.value]?.buy();
+    const credentials = _.find(
+      props?.apiCredentials,
+      (item) => item.exchange === props?.exchange.value
+    );
+
+    const Client = exchanges[props?.exchange.value];
+    if (!Client) {
+      return;
+    }
+
+    /**
+     * @type {import('./trade/exchange').default}
+     */
+    const client = new exchanges[props?.exchange.value]({
+      apiKey: credentials?.apiKey,
+      secret: credentials?.secret,
+      passphrase: credentials?.passphrase,
+    });
+
+    props.updateStateFromLocalStorage({
+      temporaryState: {
+        exchangeClient: client,
+      },
+    });
+
+    client.getAllTradingPairs().then((data) => {
+      props.updateStateFromLocalStorage({
+        temporaryState: {
+          tradingPairs: data,
+        },
+      });
+
+      const selectedTradingPair = _.find(
+        data,
+        (item) => item.symbol === props?.tradingPair?.symbol
+      );
+
+      props.updateStateFromLocalStorage({
+        selectedTradingPair,
+      });
+    });
   }, [props?.exchange]);
 
   return (
@@ -71,4 +111,12 @@ const mapStateToProps = (state) => {
   };
 };
 
-export default connect(mapStateToProps)(App);
+const mapDispatchToProps = (dispatch) => {
+  return {
+    updateStateFromLocalStorage: (payload) => {
+      dispatch({ type: "UPDATE_STATE_FROM_LOCAL_STORAGE", payload });
+    },
+  };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(App);
