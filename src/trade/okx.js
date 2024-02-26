@@ -34,7 +34,7 @@ const serializeParams = (params, method) => {
 export const getSwapInstruments = async () => {
   const response = await http.request({
     method: "POST",
-    url: "/v1/proxy",
+    url: "/",
     data: {
       url: `${baseUrl}/api/v5/public/instruments?instType=SWAP`,
       method: "GET",
@@ -49,7 +49,7 @@ export const getAccount = async (key, secret, passphrase) => {
   const signature = signMessage(timestamp + "GET" + path, secret);
   const response = await http.request({
     method: "POST",
-    url: "/v1/proxy",
+    url: "/",
     data: {
       url: `${baseUrl}${path}`,
       method: "GET",
@@ -100,7 +100,7 @@ export const placeOrder = async (data, key, secret, passphrase) => {
   const signature = signMessage(timestamp + "POST" + path + body, secret);
   const response = await http.request({
     method: "POST",
-    url: "/v1/proxy",
+    url: "/",
     data: {
       url: `${baseUrl}${path}`,
       method: "POST",

@@ -1,27 +1,44 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { configureStore, nanoid } from "@reduxjs/toolkit";
 import { persistStore, persistReducer } from "redux-persist";
 import localForage from "localforage";
 import { encryptTransform } from "redux-persist-transform-encrypt";
+import { combineReducers } from "redux";
 
 const SECRET_KEY = "H6&Xb?$Q4ta9e68EPHkk";
 const initialState = {
   lossPerTrade: 0,
-  exchange: "Binance",
+  exchange: {},
   selectedPair: {},
-  apiCredentials: {
-    binance: {
-      key: "",
-      secret: "",
+  apiCredentials: [
+    {
+      id: nanoid(),
+      exchange: "binance",
+      accountName: "Main",
+      apiKey: "API_KEY",
+      secret: "SECRET",
+      passphrase: "PASSPHRASE",
     },
-    bybit: {
-      key: "",
-      secret: "",
+    {
+      id: nanoid(),
+      exchange: "bybit",
+      accountName: "Main",
+      apiKey: "API_KEY",
+      secret: "SECRET",
+      passphrase: "PASSPHRASE",
     },
-    okx: {
-      key: "",
-      secret: "",
-      passphrase: "",
+    {
+      id: nanoid(),
+      exchange: "okx",
+      accountName: "Main",
+      apiKey: "API_KEY",
+      secret: "SECRET",
+      passphrase: "PASSPHRASE",
     },
+  ],
+  temporaryState: {
+    isSettingsOpen: false,
+    isLoading: false,
+    toasts: [],
   },
 };
 
@@ -36,18 +53,68 @@ const persistConfig = {
       },
     }),
   ],
+  blacklist: ["temporaryState"],
 };
 
-const reducer = (state = initialState, action) => {
+// const API_CREDENTIALS = "API_CREDENTIALS";
+
+// const addAPICredentialsReducer = (state = initialState, action) => {
+//   switch (action.type) {
+
+//     default:
+//       return state;
+//   }
+// };
+
+const stateReducer = (state = initialState, action) => {
   switch (action.type) {
     case "UPDATE_STATE_FROM_LOCAL_STORAGE":
       return { ...state, ...action.payload };
+
+    case "ADD_API_CREDENTIALS":
+      const newData = { ...action.data, id: nanoid() };
+      return {
+        ...state,
+        apiCredentials: [...state.apiCredentials, newData],
+      };
+
+    case "REMOVE_API_CREDENTIALS":
+      return {
+        ...state,
+        apiCredentials: state.apiCredentials.filter(
+          (item) => item.id !== action.id
+        ),
+      };
+
+    case "ADD_TOAST":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          toasts: [
+            ...state.temporaryState.toasts,
+            { id: nanoid(), ...action.payload },
+          ],
+        },
+      };
+
+    case "REMOVE_TOAST":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          toasts: state.temporaryState.toasts.filter(
+            (item) => item.id !== action.payload.id
+          ),
+        },
+      };
+
     default:
       return state;
   }
 };
 
-const persistedReducer = persistReducer(persistConfig, reducer);
+const persistedReducer = persistReducer(persistConfig, stateReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
