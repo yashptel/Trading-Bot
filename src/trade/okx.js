@@ -36,7 +36,7 @@ export const getSwapInstruments = async () => {
     method: "POST",
     url: "/v1/proxy",
     data: {
-      url: `${baseUrl}/api/v5/public/instruments?instType=SWAP`,
+      url: `${baseUrl}/api/v5/public/instruments?instType=MARGIN`,
       method: "GET",
     },
   });
@@ -131,9 +131,11 @@ export const takeTrade = async (data) => {
     instId: data.selectedTradingPair.obj.instId,
     tdMode: "cross",
     side: _.toLower(data.side),
-    posSide: _.toLower(data.side) === "buy" ? "long" : "short",
+    // posSide: _.toLower(data.side) === "buy" ? "long" : "short",
+    ccy: "USDT",
     ordType: _.toLower(data.orderType),
-    sz: sz.toString(),
+    // sz: _.toString(data.positionSize),
+    sz: _.toString(data.positionSize * data.price),
   };
 
   if (preparedData.ordType === "limit") {

@@ -429,7 +429,7 @@ const PositionCalculator = () => {
         .then((response) => {
           const perpetualContracts = _.filter(
             _.get(response, "body.data", []),
-            (symbol) => symbol.instType === "SWAP"
+            (symbol) => symbol.instType === "MARGIN"
           );
 
           const pairs = _.map(perpetualContracts, (contract) => {
@@ -498,7 +498,7 @@ const PositionCalculator = () => {
           key: apiCredentials.apiKey,
           secret: apiCredentials.apiSecret,
           passphrase: apiCredentials.passphrase,
-          currency: selectedTradingPair.obj.settleCcy,
+          currency: selectedTradingPair.obj.settleCcy || "USDT",
         })
         .then((response) => {
           !cancelled && setAvailableBalance(response.available);
