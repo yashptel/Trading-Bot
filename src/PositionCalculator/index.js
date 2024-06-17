@@ -49,13 +49,6 @@ const getAPICredentials = (exchange) => {
   };
 
   try {
-    const cred = JSON.parse(localStorage.getItem(`apiCredentials-${exchange}`));
-    if (cred) {
-      setApiCredentials("Bybit", cred);
-    }
-  } catch (error) {}
-
-  try {
     return (
       JSON.parse(localStorage.getItem(`apiCredentials-${exchange}`)) ||
       defaultCredentials
@@ -205,6 +198,11 @@ const PositionCalculator = () => {
     lastPrice,
     selectedTakeProfitOption,
   ]);
+
+  useEffect(() => {
+    const creds = getAPICredentials(exchange);
+    _setApiCredentials(creds);
+  }, [exchange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -958,6 +956,7 @@ const PositionCalculator = () => {
         qty: roundToSamePrecision(positionSize, qtyStep).toString(),
         timeInForce: "GTC",
         positionIdx: side === "Buy" ? 1 : 2,
+        tpslMode: "Partial",
       };
 
       if (!useMarketOrder) {
@@ -965,14 +964,16 @@ const PositionCalculator = () => {
         params.price = roundToSamePrecision(lastPrice, tickSize).toString();
       }
 
-      stopLoss !== 0 &&
-        (params.stopLoss = roundToSamePrecision(stopLoss, tickSize).toString());
+      if (stopLoss !== 0) {
+        params.stopLoss = roundToSamePrecision(stopLoss, tickSize).toString();
+      }
 
-      takeProfit !== 0 &&
-        (params.takeProfit = roundToSamePrecision(
+      if (takeProfit !== 0) {
+        params.takeProfit = roundToSamePrecision(
           takeProfit,
           tickSize
-        ).toString());
+        ).toString();
+      }
 
       const signature = generateSignatureBybit({
         params,
