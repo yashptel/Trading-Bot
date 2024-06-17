@@ -7,17 +7,9 @@ import { Select } from "flowbite-react";
 import config from "../config";
 import Dropdown from "../components/dropdown";
 import SettingsModal from "../components/settingsModal";
+import EntryPrice from "../components/entryPrice";
 
 const PositionCalculatorV2 = (props) => {
-  console.log("props", props);
-  console.log("props", props);
-  console.log("props", props.exchange);
-  console.log("props", props.exchange);
-  console.log("props", props.exchange);
-  console.log("props", props.exchange);
-  console.log("props", props.exchange);
-  console.log("props", props);
-
   return (
     <section className=" dark:bg-gray-900 lg:mt-auto">
       <Card>
@@ -118,6 +110,7 @@ const PositionCalculatorV2 = (props) => {
             </button>
           </div>
         </div>
+        <EntryPrice value={props.temporaryState.entryPrice} />
         <h1>Position Calculator V2</h1>
         <p>Loss per trade: {props.lossPerTrade}</p>
         <p>Exchange: {props.exchange?.name}</p>

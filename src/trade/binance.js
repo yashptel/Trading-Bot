@@ -1,6 +1,8 @@
 import Exchange from "./exchange.js";
 import http from "./api";
 import _ from "lodash";
+import { store } from "../store/index.js";
+import { w3cwebsocket as WebSocket } from "websocket";
 
 class Binance extends Exchange {
   constructor(args) {
@@ -15,8 +17,12 @@ class Binance extends Exchange {
     price,
     tradingPair,
     type = "MARKET",
+
+    selectedPair = store.getState().selectedPair,
   }) {
-    // const diff = serverTime - Date.now();
+    if (selectedPair.exchangeName != this.name) {
+      throw new Error("Exchange name mismatch.");
+    }
 
     const orders = {};
     const serverTime = await this.getServerTime();
@@ -26,7 +32,7 @@ class Binance extends Exchange {
 
     const timestamp = serverTime - Date.now();
 
-    const filters = _.get(selectedTradingPair, "obj.filters", []);
+    const filters = _.get(selectedPair, "obj.filters", []);
     const quantityPrecision = _.toNumber(
       _.find(filters, {
         filterType: "LOT_SIZE",
@@ -39,7 +45,7 @@ class Binance extends Exchange {
     );
 
     orders.order = {
-      symbol: selectedTradingPair.pair,
+      symbol: selectedPair.pair,
       side,
       positionSide: side === "BUY" ? "LONG" : "SHORT",
       type: "MARKET",
@@ -54,7 +60,7 @@ class Binance extends Exchange {
 
     if (stopLoss) {
       orders.stopLoss = {
-        symbol: selectedTradingPair.pair,
+        symbol: selectedPair.pair,
         side: side === "BUY" ? "SELL" : "BUY",
         positionSide: side === "BUY" ? "LONG" : "SHORT",
         type: "STOP_MARKET",
@@ -68,7 +74,7 @@ class Binance extends Exchange {
 
     if (takeProfit) {
       orders.takeProfit = {
-        symbol: selectedTradingPair.pair,
+        symbol: selectedPair.pair,
         side: side === "BUY" ? "SELL" : "BUY",
         positionSide: side === "BUY" ? "LONG" : "SHORT",
         type: "TAKE_PROFIT_MARKET",
@@ -149,6 +155,7 @@ class Binance extends Exchange {
       .map((item) => {
         return {
           ...item,
+          exchangeName: this.name,
           displayName: `${item.baseAsset}/${item.quoteAsset}`,
         };
       });
@@ -173,6 +180,70 @@ class Binance extends Exchange {
     );
 
     return signature;
+  }
+
+  getLastPrice(callback) {
+    const state = store.getState();
+    if (_.isEmpty(state.selectedPair)) {
+      return;
+    }
+
+    const socketAddress = "wss://fstream.binance.com/ws";
+    const ws = new WebSocket(socketAddress);
+    const { baseAsset, quoteAsset } = state.selectedPair;
+    const pair = _.toLower(`${baseAsset}${quoteAsset}`);
+
+    store.dispatch({
+      type: "SET_IS_LOADING",
+      payload: true,
+    });
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          method: "SUBSCRIBE",
+          params: [`${pair}@ticker`],
+          id: 1,
+        })
+      );
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const lastPrice = _.get(data, "c");
+      const isLoading = store.getState().temporaryState.isLoading;
+
+      isLoading &&
+        store.dispatch({
+          type: "SET_IS_LOADING",
+          payload: false,
+        });
+
+      if (lastPrice) {
+        callback(lastPrice);
+      }
+    };
+
+    ws.onerror = (error) => {
+      store.dispatch({
+        type: "SET_IS_LOADING",
+        payload: false,
+      });
+
+      store.dispatch({
+        type: "ADD_TOAST",
+        payload: {
+          message: "Failed to connect to Binance.",
+          type: "error",
+        },
+      });
+
+      console.error("WebSocket error:", error);
+    };
+
+    return () => {
+      ws.close();
+    };
   }
 }
 

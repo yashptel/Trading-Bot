@@ -21,7 +21,6 @@
     "react-number-format": "^4.7.3",
     "react-redux": "^9.1.0",
     "react-router-dom": "^6.10.0",
-    "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
     "redux-persist-transform-encrypt": "^5.1.1",
     "typescript": "^5.3.3",
@@ -70,7 +69,10 @@
   ],
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
+    "@types/lodash": "^4.14.202",
+    "@types/react-redux": "^7.1.33",
     "@types/redux-persist-transform-encrypt": "^2.0.4",
+    "@types/websocket": "^1.0.10",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1"

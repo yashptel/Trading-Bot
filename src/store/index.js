@@ -62,6 +62,18 @@ const stateReducer = (state = initialState, action) => {
     case "UPDATE_STATE_FROM_LOCAL_STORAGE":
       return { ...state, ...action.payload };
 
+    case "UPDATE_TEMPORARY_STATE":
+      return {
+        ...state,
+        temporaryState: { ...state.temporaryState, ...action.payload },
+      };
+
+    case "SET_IS_LOADING":
+      return {
+        ...state,
+        temporaryState: { ...state.temporaryState, isLoading: action.payload },
+      };
+
     case "ADD_API_CREDENTIALS":
       const newData = { ...action.data, id: nanoid() };
       return {
@@ -75,6 +87,12 @@ const stateReducer = (state = initialState, action) => {
         apiCredentials: state.apiCredentials.filter(
           (item) => item.id !== action.id
         ),
+      };
+
+    case "UPDATE_ENTRY_PRICE":
+      return {
+        ...state,
+        temporaryState: { ...state.temporaryState, entryPrice: action.payload },
       };
 
     case "ADD_TOAST":
@@ -109,6 +127,7 @@ const persistedReducer = persistReducer(persistConfig, stateReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
+  devTools: process.env.NODE_ENV !== "production",
 });
 
 export const persistor = persistStore(store);

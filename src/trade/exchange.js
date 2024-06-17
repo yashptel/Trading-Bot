@@ -1,3 +1,5 @@
+import { store } from "../store";
+
 /**
  * Represents a generic exchange.
  * @constructor
@@ -72,6 +74,14 @@ class Exchange {
   }
 
   async getAllTradingPairs() {
+    throw new Error("Method not implemented.");
+  }
+
+  /**
+   * Placeholder method for getting the last price from the exchange.
+   * @throws {Error} This method is not implemented in the base class.
+   */
+  getLastPrice(callback) {
     throw new Error("Method not implemented.");
   }
 

@@ -1,0 +1,290 @@
+//@version=4
+study("Money Maker", overlay=true)
+
+// NOTES
+
+// The "Spring" is the confirmed Miner capitulation period:
+// - The 1st "gray" circle is the start of Capitulation (1 month Hash Rate crosses UNDER 2 month Hash Rate)
+// - Last "green" circle is the end of Capitulation (1 month Hash Rate crosses OVER 2 month Hash Rate)
+// - The "greener" the spring gets (up until blue) represents Hash Rate recovery (it is increasing)
+// - The "blue" circle is the first instance of positive momentum following recovery of Hash Rate (1m HR > 2m HR). This is historically a rewarding place to buy with limited downside.
+
+// INPUTS
+
+ind1_type = input('Ribbons',options=['Ribbons','Oscillator'],title="Plot Type")
+ind1_len_s = input(30,"Hash Rate Short SMA (days).")
+ind1_len_l = input(60,"Hash Rate Long SMA (days).")
+ind1_signals = input(true, "Plot Signals")
+ind1_plot_halvings = input(true,"Plot Halvings")
+ind1_raw = input(false, "Plot Raw Hash Rate")
+
+// HASH RATE MA
+
+// HR on TV only has "yesterday's" value --> use "lookahead_on" when running live (on current bar), to pull forward yesterdays data
+ind1_live_HR_raw = security("QUANDL:BCHAIN/HRATE", "D", close,gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+ind1_live_HR_short = security("QUANDL:BCHAIN/HRATE", "D", sma(close,ind1_len_s),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+ind1_live_HR_long = security("QUANDL:BCHAIN/HRATE", "D", sma(close,ind1_len_l),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+
+ind1_hist_HR_raw = security("QUANDL:BCHAIN/HRATE", "D", close,gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+ind1_hist_HR_short = security("QUANDL:BCHAIN/HRATE", "D", sma(close,ind1_len_s),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) 
+ind1_hist_HR_long = security("QUANDL:BCHAIN/HRATE", "D", sma(close,ind1_len_l),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) 
+
+ind1_daily_s10 = security(syminfo.tickerid, "D", sma(close,10),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) 
+ind1_daily_s20 = security(syminfo.tickerid, "D", sma(close,20),gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) 
+
+
+// DAILY TIMEFRAME MGMT
+
+ind1_is_newbar(res) =>
+    t = time(res) // res calculated below \/
+    change(t) != 0 ? true : false
+
+// Check how many bars are in our upper (otf) timeframe
+ind1_since_new_bar = barssince(ind1_is_newbar("D")) //1-360 for minutes, D = Daily, W = Weekly, M = Monthly
+ind1_D_total_bars = int(na)
+ind1_D_total_bars := ind1_since_new_bar == 0 ? ind1_since_new_bar[1] : ind1_D_total_bars[1] // calculates the total number of current time frame bars in the OTF 
+
+// INDICATORS
+
+ind1_HR_short = float(na)
+ind1_HR_long = float(na)
+ind1_HR_raw = float(na)
+ind1_s10 = float(na) 
+ind1_s20 = float(na)
+
+ind1_HR_short := barstate.isrealtime ? ind1_live_HR_short : ind1_hist_HR_short 
+ind1_HR_long := barstate.isrealtime ? ind1_live_HR_long : ind1_hist_HR_long 
+ind1_HR_raw := barstate.isrealtime ? ind1_live_HR_raw : ind1_hist_HR_raw 
+
+ind1_s10 := barstate.isrealtime ? (ind1_since_new_bar == ind1_D_total_bars ? ind1_daily_s10 : ind1_s10[1]) : ind1_daily_s10
+ind1_s20 := barstate.isrealtime ? (ind1_since_new_bar == ind1_D_total_bars ? ind1_daily_s20 : ind1_s20[1]) : ind1_daily_s20
+
+ind1_capitulation = crossunder(ind1_HR_short,ind1_HR_long)
+ind1_miner_capitulation = ind1_HR_short<ind1_HR_long 
+ind1_recovering = ind1_HR_short > ind1_HR_short[1] and ind1_HR_short > ind1_HR_short[2] and ind1_HR_short > ind1_HR_short[3] and ind1_miner_capitulation
+ind1_recovered = crossover(ind1_HR_short,ind1_HR_long)
+
+// HASH BOTTOM + PA SIGNAL
+
+ind1_buy = false
+ind1_buy := (
+     (crossover(ind1_s10,ind1_s20) and barssince(ind1_recovered) < barssince(crossunder(ind1_s10,ind1_s20)) and barssince(ind1_recovered) < barssince(ind1_capitulation)) 
+     or 
+     (ind1_s10>ind1_s20 and crossover(ind1_HR_short,ind1_HR_long))
+     )
+     
+ind1_buy_plot = ind1_buy
+
+
+// OSCILLATOR
+
+ind1_delta = ind1_HR_short-ind1_HR_long
+ind1_diff = (ind1_delta/ind1_HR_short)*100
+
+// PLOT - DEFAULT
+
+// plot(ind1_raw ? ind1_HR_raw : na, color = color.green, linewidth = 1, style = plot.style_line, title='HR Raw') 
+// ind1_p1=plot(ind1_type=='Ribbons'? ind1_HR_long : na, color = color.gray, linewidth = 2, style = plot.style_line,title='HR SMA Long') 
+// ind1_p2=plot(ind1_type=='Ribbons'? ind1_HR_short : na, color = (ind1_HR_short<ind1_HR_long? color.red : color.lime), linewidth = 2, style = plot.style_line,title = 'HR SMA Short')
+// fill(ind1_p1,ind1_p2,color=(ind1_HR_short<ind1_HR_long?color.red:na),transp=30)
+
+// PLOT - OSCILLATOR
+
+plot(ind1_type=='Oscillator' ? ind1_diff : na,style=plot.style_columns,color=(ind1_diff<0?color.red:color.blue),title='Oscillator')
+
+// PLOT - SIGNALS
+
+// plotshape(ind1_signals ? ind1_capitulation :na,style=shape.circle,location=location.top,color=color.gray,size=size.normal,transp=50,text='Capitulation',textcolor=color.black,title='Capitulation')
+// plotshape(ind1_signals ? ind1_miner_capitulation : na,style=shape.circle,location=location.top,color=color.green,size=size.normal,transp=90,title='Miner Capitulation') 
+// plotshape(ind1_signals ? ind1_recovering : na,style=shape.circle,location=location.top,color=color.green,size=size.normal,transp=50,title='Recovering') 
+// plotshape(ind1_signals ? ind1_recovered : na,style=shape.circle,location=location.top,color=color.lime,size=size.normal,transp=0,textcolor=color.white,title='Recovered') 
+// plotshape(ind1_signals ? ind1_buy_plot: na,style=shape.circle,location=location.top,color=color.blue,size=size.normal,transp=0,text="Buy",textcolor=color.blue,title='Buy') 
+
+// Sourcing
+ind1_table_source = table(na)
+ind1_table_source := table.new(position=position.bottom_left, columns=1, rows=1, bgcolor=color.white, border_width=1)
+table.cell(ind1_table_source, 0, 0, text="Source: Capriole Investments Limited", bgcolor=color.white, text_color=color.black, width=20, height=7, text_size=size.normal, text_halign=text.align_left)
+
+// HALVINGS
+
+ind1_halving_1 = timestamp(2012,11,28,0,0)
+ind1_halving_2 = timestamp(2016,7,9,0,0)
+ind1_halving_3 = timestamp(2020,5,12,0,0) // projected! https://www.bitcoinclock.com/
+ind1_band = 2
+ind1_h1_range = time >= ind1_halving_1 - ind1_band*(24*60*60*1000) and time <= ind1_halving_1 + ind1_band*(24*60*60*1000) //adds 3 day either side for chart visibility
+ind1_h2_range = time >= ind1_halving_2 - ind1_band*(24*60*60*1000) and time <= ind1_halving_2 + ind1_band*(24*60*60*1000) //adds 3 day either side for chart visibility
+ind1_h3_range = time >= ind1_halving_3 - ind1_band*(24*60*60*1000) and time <= ind1_halving_3 + ind1_band*(24*60*60*1000) //adds 3 day either side for chart visibility
+// bgcolor(ind1_h1_range and ind1_plot_halvings? color.red : na, transp = 20)
+// bgcolor(ind1_h2_range and ind1_plot_halvings? color.red : na, transp = 20)
+// bgcolor(ind1_h3_range and ind1_plot_halvings? color.red : na, transp = 20)
+
+//ALERTS
+
+alertcondition(ind1_capitulation, title='Alert - Capitulation')
+alertcondition(ind1_recovered, title='Alert - Recovered')
+alertcondition(ind1_buy and not(ind1_buy[1]), title='Alert - Buy')
+
+// ================================================================================================================================
+
+
+//@version=4
+
+// Author: Charles Edwards, 2019
+ind2_plot_bands = input(true,"Plot Overbought / Oversold Bands?")
+
+ind2_plot_troughs = input(false,"Plot Potential RSI troughs?")
+ind2_plot_peaks = input(false,"Plot Potential RSI peaks?")
+
+ind2_plot_troughs_d = input(true,"Plot RSI Troughs Divergence?")
+ind2_plot_peaks_d = input(true,"Plot RSI Peak Divergence?")
+
+ind2_change = change(close)
+ind2_gain = ind2_change >= 0 ? ind2_change : 0.0
+ind2_loss = ind2_change < 0 ? (-1) * ind2_change : 0.0
+ind2_avgGain = rma(ind2_gain, 14)
+ind2_avgLoss = rma(ind2_loss, 14)
+ind2_rs = ind2_avgGain / ind2_avgLoss
+ind2_rsi = 100 - (100 / (1 + ind2_rs))
+
+
+// plot(ind2_rsi,color=color.white,linewidth=3)
+// ind2_over_sold = plot((ind2_plot_bands ? 30.0 : na), color=color.green,linewidth=1)
+// ind2_mediam = plot((ind2_plot_bands ? 50.0 : na), color =color.gray,linewidth=1,transp=30,style=plot.style_linebr)
+// ind2_over_bought = plot((ind2_plot_bands ? 70.0 : na), color=color.red,linewidth=1) 
+// ind2_extreme_over_bought = plot((ind2_plot_bands ? 90.0 : na), color=color.red,linewidth=1)
+
+// ind2_min = plot((ind2_plot_bands ? 0.0 : na), color=color.green,linewidth=1) //dashed or dotted
+// ind2_max = plot((ind2_plot_bands ? 100.0 : na), color=color.red,linewidth=1) //dashed or dotted
+// fill(ind2_min,ind2_over_sold,ind2_plot_bands ? color.green : na, title="RegionFill", transp=90)
+// fill(ind2_over_bought,ind2_extreme_over_bought,ind2_plot_bands ? color.red : na, title="RegionFill", transp=95)
+// fill(ind2_extreme_over_bought,ind2_max,ind2_plot_bands ? color.red : na, title="RegionFill", transp=80)
+
+
+// RSI DIVERGENCE LOGIC
+ind2_top = false
+ind2_top := avg(ind2_rsi[4],ind2_rsi[3]) < ind2_rsi[2] 
+     and avg(ind2_rsi,ind2_rsi[1]) < ind2_rsi[2] 
+     and ind2_rsi[2] > 60
+     and ind2_top[1] == false
+     
+ind2_bottom = false
+ind2_bottom := avg(ind2_rsi[4],ind2_rsi[3]) > ind2_rsi[2] 
+     and avg(ind2_rsi,ind2_rsi[1]) > ind2_rsi[2] 
+     and ind2_rsi[2] < 40
+     and ind2_bottom[1] == false
+
+ind2_sell = false
+ind2_sell := ind2_top == true 
+     and ind2_rsi[2] < valuewhen(ind2_top==true,ind2_rsi[2],1)
+     and close[2] > valuewhen(ind2_top==true,close[2],1)
+     
+ind2_buy = false
+ind2_buy := ind2_bottom == true 
+     and ind2_rsi[2] > valuewhen(ind2_bottom==true,ind2_rsi[2],1)
+     and close[2] < valuewhen(ind2_bottom==true,close[2],1)
+
+// plotshape(ind2_plot_peaks ? ind2_top : na,style=shape.circle,location=location.top,size = size.normal, color=color.gray)    
+// plotshape(ind2_plot_peaks_d ? ind2_sell : na,style=shape.circle,location=location.top,size = size.normal, color=color.red)
+
+// plotshape(ind2_plot_troughs ? ind2_bottom : na,style=shape.circle,location=location.bottom,size = size.normal, color=color.gray)
+plotshape(ind2_plot_peaks_d ? ind2_buy : na,style=shape.diamond,location=location.bottom,size = size.tiny, color=color.lime)
+
+
+
+// ================================================================================================================================
+
+// plotshape(ind1_buy_condition_met == 1, style=shape.diamond, location=location.top, color=color.red, size=size.small, transp=50)
+// plotshape(ind2_buy_condition_met == 1, style=shape.diamond, location=location.top, color=color.blue, size=size.small, transp=50)
+// plot(ind1_buy_condition_met + ind2_buy_condition_met, color=color.gray, style=plot.style_columns)
+
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © @NoCreditsLeft
+
+//Create Inputs for the 4 MAs, and Visual 
+
+ind3_lowma_long = input(471, minval=1, title="BTC Low - Long SMA")
+ind3_is_show_lowma1 = input(true, type=input.bool, title="Show Low Long SMA?")
+
+ind3_lowema_short = input(150, minval=1, title="BTC Low - Short EMA")
+ind3_is_show_lowma2 = input(true, type=input.bool, title="Show Low Short EMA?")
+
+ind3_hima_long = input(350, minval=1, title="BTC High - Long SMA")
+ind3_is_show_hima1 = input(true, type=input.bool, title="Show High Long SMA?")
+
+ind3_hima_short = input(111, minval=1, title="BTC High - Short SMA")
+ind3_is_show_hima2 = input(true, type=input.bool, title="Show High Short SMA?")
+
+//Set resolution to the Daily Chart
+ind3_resolution = input('D', type=input.string, title="Time interval")
+
+//Run the math for the 4 MAs
+ind3_ma_long_low = security(syminfo.tickerid, ind3_resolution, sma(close, ind3_lowma_long)*745)/1000
+ind3_ema_short_low = security(syminfo.tickerid, ind3_resolution, ema(close, ind3_lowema_short))
+ind3_ma_long_hi = security(syminfo.tickerid, ind3_resolution, sma(close, ind3_hima_long)*2)
+ind3_ma_short_hi = security(syminfo.tickerid, ind3_resolution, sma(close, ind3_hima_short))
+
+//Set SRC
+ind3_src = security(syminfo.tickerid, ind3_resolution, close)
+
+//Plot the 4 MAs
+// plot(ind3_is_show_lowma1?ind3_ma_long_low:na, color=color.red, linewidth=2, title="Low Long MA")
+var ind3_lowma_long_label = label.new(x = bar_index, y = ind3_lowma_long, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color.red, text = "BTC Low - Long SMA")
+// label.set_xy(ind3_lowma_long_label, x = bar_index, y = ind3_ma_long_low)
+
+// plot(ind3_is_show_lowma2?ind3_ema_short_low:na, color=color.green, linewidth=2, title="Low Short EMA")
+var ind3_lowema_short_label = label.new(x = bar_index, y = ind3_lowema_short, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color.green, text = "BTC Low - Short EMA")
+// label.set_xy(ind3_lowema_short_label, x = bar_index, y = ind3_ema_short_low)
+
+// plot(ind3_is_show_hima1?ind3_ma_long_hi:na, color=color.white, linewidth=2, title="High Long MA")
+var ind3_hima_long_label = label.new(x = bar_index, y = ind3_hima_long, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color.white, text = "BTC High - Long MA")
+// label.set_xy(ind3_hima_long_label, x = bar_index, y = ind3_ma_long_hi)
+
+// plot(ind3_is_show_hima2?ind3_ma_short_hi:na, color=color.yellow, linewidth=2, title="High Short MA")
+var ind3_hima_short_label = label.new(x = bar_index, y = ind3_hima_short, color = color.rgb(0, 0, 0, 100), style = label.style_label_left, textcolor = color.yellow, text = "BTC High - Short MA")
+// label.set_xy(ind3_hima_short_label, x = bar_index, y = ind3_ma_short_hi)
+
+//Find where the MAs cross each other
+ind3_pi_cycle_low_price = crossunder(ind3_ema_short_low, ind3_ma_long_low) ? ind3_src + (ind3_src/100 * 10) : na
+ind3_pi_cycle_high_price = crossunder(ind3_ma_long_hi, ind3_ma_short_hi) ? ind3_src + (ind3_src/100 * 10) : na
+
+//Create Labels
+// plotshape(ind3_pi_cycle_low_price, text="Pi Cycle Low", color=color.navy, textcolor=color.white, style=shape.labelup,size=size.normal, location=location.belowbar, title="Cycle Low")
+// plotshape(ind3_pi_cycle_high_price, text="Pi Cycle High", color=color.teal, textcolor=color.white, style=shape.labeldown,size=size.normal, location=location.abovebar, title="Cycle High")
+
+//Generate vertical lines at the BTC Halving Dates
+ind3_isDate(y, m, d) =>
+    val = timestamp(y,m,d)
+    if val <= time and val > time[1]
+        true
+    else 
+        false
+
+// First Halving
+// if ind3_isDate(2012, 11, 28)
+//     line.new(bar_index, low, bar_index, high, xloc.bar_index, extend.both, style=line.style_dashed, color=color.yellow)
+//     label.new(bar_index, low, text="1st Halving - Nov 28, 2012", style=label.style_label_upper_left, textcolor=color.yellow, color=color.black, textalign=text.align_right, yloc=yloc.belowbar)
+    
+// // Second Halving
+// if ind3_isDate(2016, 7, 9)
+//     line.new(bar_index, low, bar_index, high, xloc.bar_index, extend.both, style=line.style_dashed, color=color.yellow)
+//     label.new(bar_index, low, text="2nd Halving - Jul 9, 2016", style=label.style_label_upper_left, textcolor=color.yellow, color=color.black, textalign=text.align_right, yloc=yloc.belowbar)
+    
+// // Third Halving
+// if ind3_isDate(2020, 5, 11)
+//     line.new(bar_index, low, bar_index, high, xloc.bar_index, extend.both, style=line.style_dashed, color=color.yellow)
+//     label.new(bar_index, low, text="3rd Halving - May 11, 2020", style=label.style_label_upper_left, textcolor=color.yellow, color=color.black, textalign=text.align_right, yloc=yloc.belowbar)    
+         
+// Fourth Halving
+//if ind3_isDate(2024, 3, 26)
+//    line.new(bar_index, low, bar_index, high, xloc.bar_index, extend.both, style=line.style_dashed, color=color.yellow)
+//    label.new(bar_index, low, text="4th Halving - March 26, 2024", style=label.style_label_upper_left, textcolor=color.yellow, color=color.black, textalign=text.align_right, yloc=yloc.belowbar)
+
+var float ind3_preserved_pi_cycle_low_price = na
+ind3_preserved_pi_cycle_low_price := nz(ind3_pi_cycle_low_price, ind3_preserved_pi_cycle_low_price[1]) 
+
+ind1_buy_condition_met = ind1_diff < 0 ? 1 : 0
+ind2_buy_condition_met = ind2_plot_peaks_d ? (ind2_buy ? 1 : 0) : 0
+ind3_buy_condition_met = ind3_preserved_pi_cycle_low_price > ind3_src ? 3 : 0
+
+plot(ind1_buy_condition_met + ind2_buy_condition_met + ind3_buy_condition_met, color=color.gray, style=plot.style_line, linewidth = 2)

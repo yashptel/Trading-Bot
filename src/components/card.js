@@ -12,7 +12,15 @@ const Card = (props) => {
         {/* loader */}
         {props.isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-opacity-[0.01] rounded-lg bg-gray-600 backdrop-blur-sm">
-            <Spinner aria-label="Default status example" />
+            <Spinner
+              theme={{
+                color: {
+                  info: "fill-primary-500",
+                },
+              }}
+              size="lg"
+              aria-label="Default status example"
+            />
           </div>
         )}
       </div>
@@ -21,9 +29,6 @@ const Card = (props) => {
 };
 
 const mapStateToProps = (state) => {
-  console.log("====================================");
-  console.log("state", state);
-  console.log("====================================");
   return {
     isLoading: state.temporaryState.isLoading || false,
   };

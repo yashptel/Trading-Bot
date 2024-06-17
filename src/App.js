@@ -10,7 +10,7 @@ import Toast from "./components/toast";
 
 import { connect } from "react-redux";
 
-import exchanges from "./trade";
+import exchanges, { getAllTradingPairs, getLastPrice } from "./trade";
 import { store } from "./store";
 import _ from "lodash";
 
@@ -20,48 +20,37 @@ const App = (props) => {
   }, []);
 
   useEffect(() => {
-    const credentials = _.find(
-      props?.apiCredentials,
-      (item) => item.exchange === props?.exchange.value
-    );
-
-    const Client = exchanges[props?.exchange.value];
-    if (!Client) {
-      return;
-    }
-
-    /**
-     * @type {import('./trade/exchange').default}
-     */
-    const client = new exchanges[props?.exchange.value]({
-      apiKey: credentials?.apiKey,
-      secret: credentials?.secret,
-      passphrase: credentials?.passphrase,
-    });
-
-    props.updateStateFromLocalStorage({
-      temporaryState: {
-        exchangeClient: client,
-      },
-    });
-
-    client.getAllTradingPairs().then((data) => {
-      props.updateStateFromLocalStorage({
-        temporaryState: {
+    getAllTradingPairs().then((data) => {
+      store.dispatch({
+        type: "UPDATE_TEMPORARY_STATE",
+        payload: {
           tradingPairs: data,
         },
       });
 
-      const selectedTradingPair = _.find(
+      const selectedPair = _.find(
         data,
         (item) => item.symbol === props?.tradingPair?.symbol
       );
 
       props.updateStateFromLocalStorage({
-        selectedTradingPair,
+        selectedPair,
       });
     });
   }, [props?.exchange]);
+
+  useEffect(() => {
+    const onClose = getLastPrice((price) => {
+      store.dispatch({
+        type: "UPDATE_ENTRY_PRICE",
+        payload: price,
+      });
+    });
+
+    return () => {
+      onClose && onClose();
+    };
+  }, [props?.selectedPair]);
 
   return (
     <div className="min-h-full flex flex-col">
@@ -107,6 +96,7 @@ const App = (props) => {
 const mapStateToProps = (state) => {
   return {
     exchange: state.exchange,
+    selectedPair: state.selectedPair,
     temporaryState: state.temporaryState,
   };
 };

@@ -68,10 +68,6 @@ const SettingsModal = (props) => {
     ...initialForm,
   });
 
-  console.log("====================================");
-  console.log("props", props);
-  console.log("====================================");
-
   return (
     <div
       id="settings-modal"

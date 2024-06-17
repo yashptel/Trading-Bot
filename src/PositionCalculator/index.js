@@ -863,7 +863,17 @@ const PositionCalculator = () => {
           "X-MBX-APIKEY": apiKey,
         };
 
-        await axios.post(url, null, {
+        // await axios.post(url, null, {
+        //   headers,
+        //   params: {
+        //     ...order,
+        //     signature,
+        //   },
+        // });
+
+        axios.request({
+          url,
+          method: "POST",
           headers,
           params: {
             ...order,
