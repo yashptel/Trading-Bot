@@ -24,20 +24,25 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
 
+  const [marketPrice, setMarketPrice] = React.useState(0);
   const [price, setPrice] = React.useState(0);
-  const [limitPrice, setLimitPrice] = React.useState(0);
 
   useEffect(() => {
     const id = setInterval(() => {
       const randomPrice = Math.floor(Math.random() * 100000);
-      useMarketPrice && setLimitPrice(randomPrice);
-      setPrice(randomPrice);
+      setMarketPrice(randomPrice);
     }, 100);
 
     return () => {
       clearInterval(id);
     };
-  }, [useMarketPrice]);
+  }, []);
+
+  useEffect(() => {
+    if (useMarketOrder || useMarketPrice) {
+      setPrice(marketPrice);
+    }
+  }, [marketPrice, useMarketOrder, useMarketPrice]);
 
   return (
     <section className=" dark:bg-gray-900 lg:mt-auto">
@@ -86,28 +91,90 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
           </div>
 
           <div>
-            {useMarketOrder ? (
+            <div className="relative">
               <Input
-                label="Last Price"
-                placeholder="Enter Entry Price"
+                label="Limit Price"
+                disabled={useMarketOrder}
+                onChange={(e) => {
+                  if (!useMarketOrder) {
+                    setPrice(e.target.value);
+                  }
+                }}
+                onFocusCapture={(e) => setUseMarketPrice(false)}
                 type="text"
                 containerProps={{
                   className: "mt-4",
                 }}
                 value={price}
               />
+              <Button
+                size="sm"
+                color={true ? "gray" : "blue-gray"}
+                disabled={useMarketOrder}
+                className="!absolute right-1 top-1 rounded"
+                onClick={(e) => setUseMarketPrice(true)}
+              >
+                Sync
+              </Button>
+            </div>
+            <Checkbox
+              checked={useMarketOrder}
+              onChange={(e) => {
+                setUseMarketOrder(e.target.checked);
+
+                if (e.target.checked) {
+                  setUseMarketPrice(true);
+                }
+              }}
+              label="Use Market Order"
+              containerProps={{
+                className: "-ml-2 -mr-2",
+              }}
+            />
+          </div>
+          {/* <div>
+            {useMarketOrder ? (
+              <div className="relative">
+                <Input
+                  label="Last Price"
+                  disabled={true}
+                  type="text"
+                  containerProps={{
+                    className: "mt-4",
+                  }}
+                  value={price}
+                />
+                <Button
+                  size="sm"
+                  color={true ? "gray" : "blue-gray"}
+                  disabled={!true}
+                  className="!absolute right-1 top-1 rounded"
+                >
+                  Sync
+                </Button>
+              </div>
             ) : (
-              <Input
-                label="Manual Price"
-                placeholder="Enter Manual Price"
-                type="text"
-                containerProps={{
-                  className: "mt-4",
-                }}
-                onFocusCapture={(e) => setUseMarketPrice(false)}
-                onChangeCapture={(e) => setLimitPrice(e.target.value)}
-                value={limitPrice}
-              />
+              <div className="relative">
+                <Input
+                  label="Manual Price"
+                  placeholder="Enter Manual Price"
+                  type="text"
+                  containerProps={{
+                    className: "mt-4",
+                  }}
+                  onFocusCapture={(e) => setUseMarketPrice(false)}
+                  onChangeCapture={(e) => setLimitPrice(e.target.value)}
+                  value={limitPrice}
+                />
+                <Button
+                  size="sm"
+                  color={true ? "gray" : "blue-gray"}
+                  disabled={true}
+                  className="!absolute right-1 top-1 rounded"
+                >
+                  Sync
+                </Button>
+              </div>
             )}
 
             <Checkbox
@@ -125,7 +192,7 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
                 className: "-ml-2 -mr-2",
               }}
             />
-          </div>
+          </div> */}
         </CardBody>
         <CardFooter className="pt-3">
           <Button
