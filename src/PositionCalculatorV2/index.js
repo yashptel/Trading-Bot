@@ -10,10 +10,35 @@ import {
   Button,
   IconButton,
   Spinner,
+  Input,
+  Tabs,
+  TabsHeader,
+  Tab,
+  TabsBody,
+  TabPanel,
+  Checkbox,
 } from "@material-tailwind/react";
 import CustomSelect from "../components/CustomSelect";
 
 const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
+  const [useMarketOrder, setUseMarketOrder] = React.useState(true);
+  const [useMarketPrice, setUseMarketPrice] = React.useState(true);
+
+  const [price, setPrice] = React.useState(0);
+  const [limitPrice, setLimitPrice] = React.useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const randomPrice = Math.floor(Math.random() * 100000);
+      useMarketPrice && setLimitPrice(randomPrice);
+      setPrice(randomPrice);
+    }, 100);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, [useMarketPrice]);
+
   return (
     <section className=" dark:bg-gray-900 lg:mt-auto">
       <Card className="w-full max-w-[28rem] shadow-lg mx-auto relative">
@@ -58,6 +83,48 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
                 </g>
               </svg>
             </IconButton>
+          </div>
+
+          <div>
+            {useMarketOrder ? (
+              <Input
+                label="Last Price"
+                placeholder="Enter Entry Price"
+                type="text"
+                containerProps={{
+                  className: "mt-4",
+                }}
+                value={price}
+              />
+            ) : (
+              <Input
+                label="Manual Price"
+                placeholder="Enter Manual Price"
+                type="text"
+                containerProps={{
+                  className: "mt-4",
+                }}
+                onFocusCapture={(e) => setUseMarketPrice(false)}
+                onChangeCapture={(e) => setLimitPrice(e.target.value)}
+                value={limitPrice}
+              />
+            )}
+
+            <Checkbox
+              checked={useMarketOrder}
+              onChange={(e) => {
+                setUseMarketOrder(e.target.checked);
+
+                if (e.target.checked) {
+                  setUseMarketPrice(true);
+                }
+              }}
+              size={"sm"}
+              label="Use Market Order"
+              containerProps={{
+                className: "-ml-2 -mr-2",
+              }}
+            />
           </div>
         </CardBody>
         <CardFooter className="pt-3">
