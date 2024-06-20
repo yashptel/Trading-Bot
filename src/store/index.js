@@ -63,7 +63,7 @@ const stateReducer = (state = initialState, action) => {
         ...state,
         temporaryState: {
           ...state.temporaryState,
-          isLoading: action.isLoading,
+          isLoading: action.payload,
         },
       };
 

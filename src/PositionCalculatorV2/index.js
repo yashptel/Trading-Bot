@@ -9,13 +9,21 @@ import {
   CardFooter,
   Button,
   IconButton,
+  Spinner,
 } from "@material-tailwind/react";
 import CustomSelect from "../components/CustomSelect";
 
-const PositionCalculatorV2 = ({}) => {
+const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
   return (
     <section className=" dark:bg-gray-900 lg:mt-auto">
-      <Card className="w-full max-w-[28rem] shadow-lg mx-auto">
+      <Card className="w-full max-w-[28rem] shadow-lg mx-auto relative">
+        <div
+          className={`flex justify-center items-center rounded-xl absolute top-0 right-0 left-0 bottom-0 z-50 backdrop-blur-sm transition-all duration-300 ${
+            isLoading ? "opacity-100 visible`" : "opacity-0 invisible"
+          }`}
+        >
+          <Spinner className="h-8 w-8" />
+        </div>
         <CardBody>
           <div className="flex items-center justify-between gap-2">
             <CustomSelect
@@ -53,7 +61,17 @@ const PositionCalculatorV2 = ({}) => {
           </div>
         </CardBody>
         <CardFooter className="pt-3">
-          <Button size="lg" fullWidth={true}>
+          <Button
+            size="lg"
+            fullWidth={true}
+            onClickCapture={(e) => {
+              setIsLoading(true);
+
+              setTimeout(() => {
+                setIsLoading(false);
+              }, 3000);
+            }}
+          >
             Reserve
           </Button>
         </CardFooter>
@@ -66,11 +84,7 @@ const PositionCalculatorV2 = ({}) => {
 
 const mapStateToProps = (state) => {
   return {
-    lossPerTrade: state.lossPerTrade,
-    exchange: state.exchange,
-    selectedPair: state.selectedPair,
-    apiCredentials: state.apiCredentials,
-    temporaryState: state.temporaryState,
+    isLoading: state.temporaryState.isLoading,
   };
 };
 
@@ -78,6 +92,10 @@ const mapDispatchToProps = (dispatch) => {
   return {
     updateStateFromLocalStorage: (payload) => {
       // dispatch({ type: "UPDATE_STATE_FROM_LOCAL_STORAGE", payload });
+    },
+
+    setIsLoading: (payload) => {
+      dispatch({ type: "SET_IS_LOADING", payload });
     },
   };
 };
