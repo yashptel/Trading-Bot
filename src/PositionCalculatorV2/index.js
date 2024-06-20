@@ -17,8 +17,17 @@ import {
   TabsBody,
   TabPanel,
   Checkbox,
+  Select,
+  Option,
+  Menu,
+  MenuHandler,
+  MenuList,
+  MenuItem,
+  Chip,
 } from "@material-tailwind/react";
 import CustomSelect from "../components/CustomSelect";
+import { CheckIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
+import { useCopyToClipboard } from "usehooks-ts";
 
 const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
@@ -26,6 +35,20 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
 
   const [marketPrice, setMarketPrice] = React.useState(0);
   const [price, setPrice] = React.useState(0);
+
+  const [value, copy] = useCopyToClipboard();
+  const [copied, setCopied] = React.useState(false);
+
+  const data = [
+    {
+      label: "Manual TP",
+      value: "manual",
+    },
+    {
+      label: "Based on RR",
+      value: "rr",
+    },
+  ];
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -93,6 +116,7 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
           <div>
             <div className="relative">
               <Input
+                size="lg"
                 label="Limit Price"
                 disabled={useMarketOrder}
                 onChange={(e) => {
@@ -108,10 +132,10 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
                 value={price}
               />
               <Button
-                size="sm"
+                size="md"
                 color={true ? "gray" : "blue-gray"}
                 disabled={useMarketOrder}
-                className="!absolute right-1 top-1 rounded"
+                className="!absolute right-1 top-1 rounded h-9 flex items-center"
                 onClick={(e) => setUseMarketPrice(true)}
               >
                 Sync
@@ -132,82 +156,127 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
               }}
             />
           </div>
-          {/* <div>
-            {useMarketOrder ? (
-              <div className="relative">
-                <Input
-                  label="Last Price"
-                  disabled={true}
-                  type="text"
-                  containerProps={{
-                    className: "mt-4",
-                  }}
-                  value={price}
-                />
-                <Button
-                  size="sm"
-                  color={true ? "gray" : "blue-gray"}
-                  disabled={!true}
-                  className="!absolute right-1 top-1 rounded"
-                >
-                  Sync
-                </Button>
-              </div>
-            ) : (
-              <div className="relative">
-                <Input
-                  label="Manual Price"
-                  placeholder="Enter Manual Price"
-                  type="text"
-                  containerProps={{
-                    className: "mt-4",
-                  }}
-                  onFocusCapture={(e) => setUseMarketPrice(false)}
-                  onChangeCapture={(e) => setLimitPrice(e.target.value)}
-                  value={limitPrice}
-                />
-                <Button
-                  size="sm"
-                  color={true ? "gray" : "blue-gray"}
-                  disabled={true}
-                  className="!absolute right-1 top-1 rounded"
-                >
-                  Sync
-                </Button>
-              </div>
-            )}
 
-            <Checkbox
-              checked={useMarketOrder}
-              onChange={(e) => {
-                setUseMarketOrder(e.target.checked);
-
-                if (e.target.checked) {
-                  setUseMarketPrice(true);
-                }
-              }}
-              size={"sm"}
-              label="Use Market Order"
+          <div className="flex flex-grow gap-2">
+            <Input
+              label="Limit Price"
+              type="text"
               containerProps={{
-                className: "-ml-2 -mr-2",
+                className: "mt-4",
               }}
             />
-          </div> */}
+            <div className="w-full">
+              <Input
+                label="Limit Price"
+                onFocusCapture={(e) => setUseMarketPrice(false)}
+                type="text"
+                containerProps={{
+                  className: "mt-4",
+                }}
+              />
+
+              <Tabs value="manual">
+                <TabsHeader className="text-nowrap h-8 text-sm flex mt-4">
+                  {data.map(({ label, value }) => (
+                    <Tab key={value} value={value} className="text-xs">
+                      {label}
+                    </Tab>
+                  ))}
+                </TabsHeader>
+              </Tabs>
+            </div>
+          </div>
+
+          <div>
+            <Input
+              label="Limit Price"
+              onFocusCapture={(e) => setUseMarketPrice(false)}
+              type="text"
+              containerProps={{
+                className: "mt-4",
+              }}
+            />
+            <div className="flex gap-2 mt-2">
+              {[1, 3, 5, 6, 8, 9].map((i) => {
+                return (
+                  <Chip
+                    variant="outlined"
+                    value={`$${i}`}
+                    size="sm"
+                    className="h-5 py-0 font-normal text-[0.8rem] border-gray-400 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 ease-in-out cursor-pointer active:bg-gray-200 dark:checked:bg-gray-700"
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="relative flex w-full mt-4">
+            <Input
+              label="Limit Price"
+              onFocusCapture={(e) => setUseMarketPrice(false)}
+              type="text"
+              containerProps={{
+                className: "",
+              }}
+            />
+            {/* <Button
+              size="sm"
+              color={true ? "gray" : "blue-gray"}
+              disabled={!true}
+              className="!absolute right-1 top-1 rounded"
+            >
+              Copy
+            </Button> */}
+
+            <IconButton
+              size="sm"
+              className="!absolute right-1 top-1 rounded-md"
+              onMouseLeave={() => setCopied(false)}
+              onClick={() => {
+                copy("npm i @material-tailwind/react");
+                setCopied(true);
+              }}
+            >
+              {copied ? (
+                <CheckIcon className="h-4 w-4 text-white" />
+              ) : (
+                <DocumentDuplicateIcon className="h-4 w-4 text-white" />
+              )}
+            </IconButton>
+          </div>
         </CardBody>
         <CardFooter className="pt-3">
-          <Button
-            size="lg"
-            fullWidth={true}
-            onClickCapture={(e) => {
-              setIsLoading(true);
+          <div className="flex gap-4">
+            <Button
+              size="lg"
+              color="green"
+              fullWidth={true}
+              onClickCapture={(e) => {
+                setIsLoading(true);
 
-              setTimeout(() => {
-                setIsLoading(false);
-              }, 3000);
-            }}
-          >
-            Reserve
-          </Button>
+                setTimeout(() => {
+                  setIsLoading(false);
+                }, 3000);
+              }}
+            >
+              Long
+            </Button>
+
+            <Button
+              size="lg"
+              color="red"
+              fullWidth={true}
+              onClickCapture={(e) => {
+                setIsLoading(true);
+
+                setTimeout(() => {
+                  setIsLoading(false);
+                }, 3000);
+              }}
+            >
+              Short
+            </Button>
+          </div>
         </CardFooter>
       </Card>
 
