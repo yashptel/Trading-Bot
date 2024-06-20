@@ -19,11 +19,15 @@ const PositionCalculatorV2 = ({}) => {
         <CardBody>
           <div className="flex items-center justify-between gap-2">
             <CustomSelect
+              key="exchange-select"
+              label="Select Exchange"
               selections={config.exchanges}
               keyKey="id"
             ></CustomSelect>
 
             <CustomSelect
+              key="pair-select"
+              label="Select Pair"
               showLogo={false}
               selections={[
                 { name: "BTC/USDT", value: "BTCUSDT", id: "BTCUSDT" },
