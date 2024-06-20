@@ -13,11 +13,15 @@ const CustomSelect = ({
   keyKey = "key",
   logoKey = "logo",
   label = "Select",
-  key = nanoid(),
 }) => {
+  const [key] = React.useState(nanoid());
   const [filteredSelections, setFilteredSelections] =
     React.useState(selections);
   const [query, setQuery] = React.useState("");
+
+  /**
+   * @param {React.ChangeEvent<HTMLInputElement>} e
+   */
   const handleSearch = (e) => {
     setQuery(e.target.value);
   };
@@ -64,7 +68,7 @@ const CustomSelect = ({
       {[
         showSearch && (
           <Input
-            key="search"
+            key={`search-${key}`}
             autoFocus={false}
             label="Search"
             onChange={handleSearch}
