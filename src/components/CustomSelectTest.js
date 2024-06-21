@@ -3,7 +3,7 @@ import React from "react";
 import _ from "lodash";
 import { nanoid } from "@reduxjs/toolkit";
 
-const CustomSelect = ({
+const CustomSelectTest = ({
   showSearch = true,
   showLogo = true,
   selections,
@@ -13,13 +13,12 @@ const CustomSelect = ({
   keyKey = "key",
   logoKey = "logo",
   label = "Select",
-  defaultValue,
-  onChange = (e) => e,
+  key = nanoid(),
 }) => {
-  const [key] = React.useState(nanoid());
+  let [key2, setKey] = React.useState(key + "-" + nanoid());
+  const [query, setQuery] = React.useState("");
   const [filteredSelections, setFilteredSelections] =
     React.useState(selections);
-  const [query, setQuery] = React.useState("");
 
   /**
    * @param {React.ChangeEvent<HTMLInputElement>} e
@@ -41,7 +40,7 @@ const CustomSelect = ({
   React.useEffect(() => {
     const queryTerm = _.toLower(query);
     const res = _.filter(selections, (selection) => {
-      const term = _.toLower(selection[searchKey]);
+      const term = _.toLower(selection.name);
       const match = _.includes(term, queryTerm);
       return match;
     });
@@ -51,12 +50,13 @@ const CustomSelect = ({
 
   return (
     <Select
-      value={defaultValue}
-      key={key}
+      key={key2}
       size="lg"
-      label={label}
+      label="Select Exchange root"
+      onChange={(e) => {
+        return e;
+      }}
       dismiss={false}
-      onChange={onChange}
       selected={(element) =>
         element &&
         React.cloneElement(element, {
@@ -67,40 +67,38 @@ const CustomSelect = ({
       }
     >
       {[
-        showSearch ? (
-          <Input
-            key={`search-${key}`}
-            autoFocus={false}
-            label="Search"
-            onChange={handleSearch}
-            onKeyDownCapture={handleOnKeyDownCapture}
-            value={query}
-            containerProps={{
-              className: "mb-4",
-            }}
-          />
-        ) : null,
+        <Input
+          key="search-input"
+          autoFocus={true}
+          label="Search"
+          onChange={handleSearch}
+          onKeyDownCapture={handleOnKeyDownCapture}
+          value={query}
+          containerProps={{
+            className: "mb-4",
+          }}
+        />,
         ...filteredSelections.map((s) => (
           <Option
             onKeyDownCapture={handleOnKeyDownCapture}
             autoFocus={false}
-            key={s[keyKey]}
-            value={s[valueKey]}
+            key={s.id}
+            value={s.name}
             className="flex items-center gap-2"
           >
             {showLogo && (
               <img
-                src={s[logoKey]}
-                alt={s[nameKey]}
+                src={s.logo}
+                alt={s.name}
                 className="h-5 w-5 rounded-full object-cover"
               />
             )}
-            {s[nameKey]}
+            {s.name}
           </Option>
         )),
-      ].filter((item) => item !== null)}
+      ]}
     </Select>
   );
 };
 
-export default CustomSelect;
+export default CustomSelectTest;

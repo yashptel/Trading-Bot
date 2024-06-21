@@ -8,7 +8,7 @@ const SECRET_KEY = "H6&Xb?$Q4ta9e68EPHkk";
 const initialState = {
   currentSettings: {
     apiCredentialId: "",
-    exchange: "",
+    exchangeId: "",
     symbol: "",
   },
   inputState: {
@@ -19,8 +19,20 @@ const initialState = {
   apiCredentials: [],
   temporaryState: {
     isLoading: false,
+    isSettingsModalOpen: false,
   },
 };
+
+// for (let i = 0; i < 5; i++) {
+//   initialState.apiCredentials.push({
+//     id: nanoid(),
+//     exchangeId: "E0GKF97sIEnbz0i1GeFx2",
+//     name: "Binance",
+//     apiKey: "kdslfj83fj3289uhi3f",
+//     secretKey: "3klj32jhkf7893f2h893298y32rthuf23y8923789yf",
+//     passphrase: "3f289yf23h89",
+//   });
+// }
 
 const persistConfig = {
   key: "state",
@@ -50,11 +62,19 @@ const stateReducer = (state = initialState, action) => {
         ],
       };
 
+    case "UPDATE_API_CREDENTIALS":
+      return {
+        ...state,
+        apiCredentials: state.apiCredentials.map((item) =>
+          item.id === action.data.id ? action.data : item
+        ),
+      };
+
     case "DELETE_API_CREDENTIALS":
       return {
         ...state,
         apiCredentials: state.apiCredentials.filter(
-          (item) => item.id !== action.id
+          (item) => item.id !== action.payload
         ),
       };
 
@@ -71,6 +91,24 @@ const stateReducer = (state = initialState, action) => {
       return {
         ...state,
         currentSettings: action.data,
+      };
+
+    case "SET_CURRENT_SETTINGS_MODAL":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          isSettingsModalOpen: action.payload,
+        },
+      };
+
+    case "SET_EXCHANGE_ID":
+      return {
+        ...state,
+        currentSettings: {
+          ...state.currentSettings,
+          exchangeId: action.payload,
+        },
       };
 
     default:

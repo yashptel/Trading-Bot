@@ -6,11 +6,16 @@ import { COMPANY_NAME } from "./constants";
 
 import { initFlowbite } from "flowbite";
 import Footer from "./components/footer";
+import { Alert, Button } from "@material-tailwind/react";
+import Settings from "./components/Settings";
 
 const App = () => {
   useEffect(() => {
     initFlowbite();
   }, []);
+
+  const [open, setOpen] = React.useState(false);
+  const handleOpen = () => setOpen(!open);
 
   return (
     <div className="min-h-full flex flex-col">
@@ -29,6 +34,42 @@ const App = () => {
       <Outlet />
 
       <Footer />
+
+      <Settings />
+
+      <div className="fixed bottom-6 right-4 w-80 space-y-4">
+        <Alert
+          className=""
+          animate={{
+            mount: { x: 0 },
+            unmount: { x: 100 },
+          }}
+        >
+          A dismissible alert with custom animation.
+        </Alert>
+        <Alert
+          className=""
+          open={open}
+          onClose={() => setOpen(false)}
+          animate={{
+            mount: { y: 0 },
+            unmount: { y: 100 },
+          }}
+        >
+          A dismissible alert with custom animation.
+        </Alert>
+        <Alert
+          className=""
+          open={false}
+          onClose={() => setOpen(false)}
+          animate={{
+            mount: { y: 0 },
+            unmount: { y: 100 },
+          }}
+        >
+          A dismissible alert with custom animation.
+        </Alert>
+      </div>
     </div>
   );
 };

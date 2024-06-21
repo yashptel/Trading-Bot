@@ -432,7 +432,7 @@ const SettingsModal = (props) => {
                               >
                                 {_.find(
                                   config.exchanges,
-                                  (exchange) => exchange.value === item.exchange
+                                  (exchange) => exchange.id === item.exchangeId
                                 ).name || "N/A"}
                               </th>
                               <td class="px-6 py-4">

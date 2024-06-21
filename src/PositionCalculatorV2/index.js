@@ -29,7 +29,14 @@ import CustomSelect from "../components/CustomSelect";
 import { CheckIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { useCopyToClipboard } from "usehooks-ts";
 
-const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
+const PositionCalculatorV2 = ({
+  isLoading,
+  setIsLoading,
+  setCurrentSettingsModal,
+
+  exchangeId,
+  setExchangeId,
+}) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
 
@@ -68,8 +75,8 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
   }, [marketPrice, useMarketOrder, useMarketPrice]);
 
   return (
-    <section className=" dark:bg-gray-900 lg:mt-auto">
-      <Card className="w-full max-w-[28rem] shadow-lg mx-auto relative">
+    <section className=" dark:bg-gray-900 lg:mt-auto ">
+      <Card className="w-full max-w-[26rem] shadow-lg mx-auto relative">
         <div
           className={`flex justify-center items-center rounded-xl absolute top-0 right-0 left-0 bottom-0 z-50 backdrop-blur-sm transition-all duration-300 ${
             isLoading ? "opacity-100 visible`" : "opacity-0 invisible"
@@ -77,13 +84,17 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
         >
           <Spinner className="h-8 w-8" />
         </div>
-        <CardBody>
-          <div className="flex items-center justify-between gap-2">
+        <CardBody className="space-y-4 md:space-y-6">
+          <div className="flex items-center justify-between gap-2 mb-8 md:mb-10">
             <CustomSelect
+              defaultValue={exchangeId}
+              onChange={(val) => setExchangeId(val)}
+              showSearch={false}
               key="exchange-select"
               label="Select Exchange"
               selections={config.exchanges}
               keyKey="id"
+              valueKey="id"
             ></CustomSelect>
 
             <CustomSelect
@@ -97,7 +108,14 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
               keyKey="id"
             ></CustomSelect>
 
-            <IconButton variant="outlined" className="w-24" size="md">
+            <IconButton
+              variant="outlined"
+              className="w-28"
+              size="md"
+              onClickCapture={(e) => {
+                setCurrentSettingsModal(true);
+              }}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 enable-background="new 0 0 24 24"
@@ -113,7 +131,7 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
             </IconButton>
           </div>
 
-          <div>
+          <div className="!-mb-1 md:!-mb-1">
             <div className="relative">
               <Input
                 size="lg"
@@ -126,9 +144,6 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
                 }}
                 onFocusCapture={(e) => setUseMarketPrice(false)}
                 type="text"
-                containerProps={{
-                  className: "mt-4",
-                }}
                 value={price}
               />
               <Button
@@ -158,22 +173,9 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
           </div>
 
           <div className="flex flex-grow gap-2">
-            <Input
-              label="Limit Price"
-              type="text"
-              containerProps={{
-                className: "mt-4",
-              }}
-            />
+            <Input size="lg" label="Limit Price" type="text" />
             <div className="w-full">
-              <Input
-                label="Limit Price"
-                onFocusCapture={(e) => setUseMarketPrice(false)}
-                type="text"
-                containerProps={{
-                  className: "mt-4",
-                }}
-              />
+              <Input size="lg" label="Limit Price" type="text" />
 
               <Tabs value="manual">
                 <TabsHeader className="text-nowrap h-8 text-sm flex mt-4">
@@ -189,12 +191,10 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
 
           <div>
             <Input
+              size="lg"
               label="Limit Price"
               onFocusCapture={(e) => setUseMarketPrice(false)}
               type="text"
-              containerProps={{
-                className: "mt-4",
-              }}
             />
             <div className="flex gap-2 mt-2">
               {[1, 3, 5, 6, 8, 9].map((i) => {
@@ -210,8 +210,9 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
             </div>
           </div>
 
-          <div className="relative flex w-full mt-4">
+          <div className="relative flex w-full">
             <Input
+              size="lg"
               label="Limit Price"
               onFocusCapture={(e) => setUseMarketPrice(false)}
               type="text"
@@ -219,19 +220,13 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
                 className: "",
               }}
             />
-            {/* <Button
-              size="sm"
-              color={true ? "gray" : "blue-gray"}
-              disabled={!true}
-              className="!absolute right-1 top-1 rounded"
-            >
-              Copy
-            </Button> */}
 
             <IconButton
-              size="sm"
-              className="!absolute right-1 top-1 rounded-md"
-              onMouseLeave={() => setCopied(false)}
+              size="md"
+              className="!absolute right-1 top-1 rounded h-9 flex items-center"
+              onMouseLeave={() =>
+                setTimeout(() => copied && setCopied(false), 1000)
+              }
               onClick={() => {
                 copy("npm i @material-tailwind/react");
                 setCopied(true);
@@ -245,7 +240,7 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
             </IconButton>
           </div>
         </CardBody>
-        <CardFooter className="pt-3">
+        <CardFooter className="pt-3 ">
           <div className="flex gap-4">
             <Button
               size="lg"
@@ -288,6 +283,7 @@ const PositionCalculatorV2 = ({ isLoading, setIsLoading }) => {
 const mapStateToProps = (state) => {
   return {
     isLoading: state.temporaryState.isLoading,
+    exchangeId: state.currentSettings.exchangeId,
   };
 };
 
@@ -299,6 +295,14 @@ const mapDispatchToProps = (dispatch) => {
 
     setIsLoading: (payload) => {
       dispatch({ type: "SET_IS_LOADING", payload });
+    },
+
+    setCurrentSettingsModal: (payload) => {
+      dispatch({ type: "SET_CURRENT_SETTINGS_MODAL", payload });
+    },
+
+    setExchangeId: (payload) => {
+      dispatch({ type: "SET_EXCHANGE_ID", payload });
     },
   };
 };
