@@ -98,7 +98,10 @@ const AddEditModal = ({
               key="exchange-select"
               label="Select Exchange"
               selections={config.exchanges}
-              onChange={(val) => setForm({ ...form, exchangeId: val })}
+              onChange={(val) => {
+                setForm({ ...form, exchangeId: val });
+                return val;
+              }}
               keyKey="id"
             ></CustomSelect>
 

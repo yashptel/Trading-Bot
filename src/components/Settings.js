@@ -144,7 +144,7 @@ export function Settings({
     <>
       <Dialog
         className="p-4 min-w-[95%]"
-        size=""
+        size="lg"
         open={isSettingsModalOpen}
         handler={() => {}}
       >
@@ -177,45 +177,13 @@ export function Settings({
         <DialogBody className="overflow-y-auto">
           <section className=" flex gap-2">
             <List>
-              <ListItem>
-                <ListItemPrefix>
-                  <PresentationChartBarIcon className="h-5 w-5" />
-                </ListItemPrefix>
-                Dashboard
-              </ListItem>
-              <ListItem>
-                <ListItemPrefix>
-                  <ShoppingBagIcon className="h-5 w-5" />
-                </ListItemPrefix>
-                E-Commerce
-              </ListItem>
-              <ListItem>
-                <ListItemPrefix>
-                  <InboxIcon className="h-5 w-5" />
-                </ListItemPrefix>
-                Inbox
-                <ListItemSuffix>
-                  <Chip
-                    value="14"
-                    size="sm"
-                    variant="ghost"
-                    color="blue-gray"
-                    className="rounded-full"
-                  />
-                </ListItemSuffix>
-              </ListItem>
-              <ListItem>
+              <ListItem selected>
                 <ListItemPrefix>
                   <UserCircleIcon className="h-5 w-5" />
                 </ListItemPrefix>
-                Profile
+                Accounts
               </ListItem>
-              <ListItem>
-                <ListItemPrefix>
-                  <Cog6ToothIcon className="h-5 w-5" />
-                </ListItemPrefix>
-                Settings
-              </ListItem>
+
               <ListItem>
                 <ListItemPrefix>
                   <PowerIcon className="h-5 w-5" />

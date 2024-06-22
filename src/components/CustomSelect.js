@@ -49,6 +49,12 @@ const CustomSelect = ({
     setFilteredSelections(res);
   }, [query, selections]);
 
+  React.useEffect(() => {
+    if (defaultValue) {
+      onChange(defaultValue);
+    }
+  }, []);
+
   return (
     <Select
       value={defaultValue}
