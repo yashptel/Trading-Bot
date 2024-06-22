@@ -210,7 +210,37 @@ export function Settings({
                     <Button
                       className="flex items-center gap-1"
                       size="sm"
-                      onClick={() => setaddEditModalOpen(true)}
+                      onClick={() => {
+                        const modalId = nanoid();
+
+                        const removeModal = () => {
+                          setTimeout(() => {
+                            setModals((prev) => {
+                              return prev.filter((item) => item.id !== modalId);
+                            });
+                          }, 300);
+                        };
+
+                        setModals((prev) => {
+                          return [
+                            ...prev,
+                            {
+                              id: modalId,
+                              html: (
+                                <AddEditModal
+                                  key={modalId}
+                                  handleCancel={() => {
+                                    removeModal();
+                                  }}
+                                  handleConfirm={() => {
+                                    removeModal();
+                                  }}
+                                />
+                              ),
+                            },
+                          ];
+                        });
+                      }}
                     >
                       <PlusCircleIcon strokeWidth={2} className="h-4 w-4" /> Add
                       New API Key
@@ -313,7 +343,44 @@ export function Settings({
 
                             <td className={classes}>
                               <div className="flex justify-start gap-2">
-                                <IconButton variant="text" size="sm">
+                                <IconButton
+                                  variant="text"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    const modalId = nanoid();
+
+                                    const removeModal = () => {
+                                      setTimeout(() => {
+                                        setModals((prev) => {
+                                          return prev.filter(
+                                            (item) => item.id !== modalId
+                                          );
+                                        });
+                                      }, 300);
+                                    };
+
+                                    setModals((prev) => {
+                                      return [
+                                        ...prev,
+                                        {
+                                          id: modalId,
+                                          html: (
+                                            <AddEditModal
+                                              id={id}
+                                              key={modalId}
+                                              handleCancel={() => {
+                                                removeModal();
+                                              }}
+                                              handleConfirm={() => {
+                                                removeModal();
+                                              }}
+                                            />
+                                          ),
+                                        },
+                                      ];
+                                    });
+                                  }}
+                                >
                                   <PencilSquareIcon className="h-5 w-5 text-gray-900" />
                                 </IconButton>
                                 <IconButton
@@ -387,12 +454,6 @@ export function Settings({
       </ConfirmModal> */}
 
       {modals.map(({ id, html }) => html)}
-
-      <AddEditModal
-        open={addEditModalOpen}
-        handleCancel={() => setaddEditModalOpen(false)}
-        handleConfirm={() => setaddEditModalOpen(false)}
-      />
     </>
   );
 }

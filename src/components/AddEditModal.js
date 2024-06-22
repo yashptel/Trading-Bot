@@ -14,38 +14,37 @@ import {
 import config from "../config";
 import CustomSelect from "./CustomSelect";
 import { connect } from "react-redux";
+import _ from "lodash";
 
 const AddEditModal = ({
-  open,
+  defaultState = true,
   handleCancel,
   handleConfirm,
   apiCredentials,
   addApiCredentials,
   updateApiCredentials,
-
-  id = "",
+  id,
 }) => {
-  const [form, setForm] = React.useState({
-    exchangeId: "",
-    name: "",
-    apiKey: "",
-    secretKey: "",
-    passphrase: "",
-  });
-
-  React.useEffect(() => {
-    if (id) {
-      const data = _.find(apiCredentials, { id });
-      if (data) setForm(data);
+  const [open, setOpen] = React.useState(defaultState);
+  const [form, setForm] = React.useState(
+    _.find(apiCredentials, { id }) || {
+      exchangeId: "",
+      name: "",
+      apiKey: "",
+      secretKey: "",
+      passphrase: "",
     }
-  }, [id, apiCredentials]);
+  );
 
   return (
     <>
       <Dialog
         size="xs"
         open={open}
-        handler={handleCancel}
+        handler={() => {
+          setOpen(false);
+          handleCancel();
+        }}
         className="bg-transparent shadow-none"
       >
         <Card className="mx-auto w-full max-w-[24rem]">
@@ -71,7 +70,10 @@ const AddEditModal = ({
               color="gray"
               size="sm"
               variant="text"
-              onClick={handleCancel}
+              onClick={() => {
+                setOpen(false);
+                handleCancel();
+              }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -92,7 +94,7 @@ const AddEditModal = ({
 
           <CardBody className="flex flex-col gap-4">
             <CustomSelect
-              defaultValue={config.exchanges[0].id}
+              defaultValue={form.exchangeId || config.exchanges[0].id}
               valueKey="id"
               showSearch={false}
               key="exchange-select"
@@ -138,7 +140,13 @@ const AddEditModal = ({
             />
           </CardBody>
           <CardFooter className="pt-0 flex justify-end gap-2">
-            <Button variant="text" onClick={handleCancel}>
+            <Button
+              variant="text"
+              onClick={() => {
+                setOpen(false);
+                handleCancel();
+              }}
+            >
               Reset
             </Button>
             <Button
@@ -149,7 +157,8 @@ const AddEditModal = ({
                 } else {
                   addApiCredentials(form);
                 }
-                handleConfirm(e);
+                setOpen(false);
+                handleCancel();
               }}
             >
               Save
