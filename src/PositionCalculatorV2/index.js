@@ -28,6 +28,7 @@ import {
 import CustomSelect from "../components/CustomSelect";
 import { CheckIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { useCopyToClipboard } from "usehooks-ts";
+import getTradeInstance from "../trade";
 
 const PositionCalculatorV2 = ({
   isLoading,
@@ -36,6 +37,9 @@ const PositionCalculatorV2 = ({
 
   exchangeId,
   setExchangeId,
+
+  tradingPair,
+  setTradingPair,
 }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
@@ -45,6 +49,8 @@ const PositionCalculatorV2 = ({
 
   const [value, copy] = useCopyToClipboard();
   const [copied, setCopied] = React.useState(false);
+
+  const [tradingPairs, setTradingPairs] = React.useState([]);
 
   const data = [
     {
@@ -56,6 +62,21 @@ const PositionCalculatorV2 = ({
       value: "rr",
     },
   ];
+
+  useEffect(() => {
+    let cancelled = false;
+    const client = getTradeInstance(exchangeId);
+    if (!client) return;
+
+    client.getAllTradingPairs().then((res) => {
+      if (cancelled) return;
+      setTradingPairs(res);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [exchangeId]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -98,14 +119,17 @@ const PositionCalculatorV2 = ({
             ></CustomSelect>
 
             <CustomSelect
+              showSearch={true}
+              defaultValue={tradingPair}
+              onChange={(val) => setTradingPair(val)}
               key="pair-select"
               label="Select Pair"
               showLogo={false}
-              selections={[
-                { name: "BTC/USDT", value: "BTCUSDT", id: "BTCUSDT" },
-                { name: "ETH/USDT", value: "ETHUSDT", id: "ETHUSDT" },
-              ]}
-              keyKey="id"
+              selections={tradingPairs}
+              nameKey="displayName"
+              searchKey="searchName"
+              valueKey="searchName"
+              keyKey="originalSymbol"
             ></CustomSelect>
 
             <IconButton
@@ -284,6 +308,7 @@ const mapStateToProps = (state) => {
   return {
     isLoading: state.temporaryState.isLoading,
     exchangeId: state.currentSettings.exchangeId,
+    tradingPair: state.currentSettings.tradingPair,
   };
 };
 
@@ -303,6 +328,10 @@ const mapDispatchToProps = (dispatch) => {
 
     setExchangeId: (payload) => {
       dispatch({ type: "SET_EXCHANGE_ID", payload });
+    },
+
+    setTradingPair: (payload) => {
+      dispatch({ type: "SET_TRADING_PAIR", payload });
     },
   };
 };

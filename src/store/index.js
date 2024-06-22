@@ -9,6 +9,7 @@ const initialState = {
   currentSettings: {
     apiCredentialId: "",
     exchangeId: "",
+    tradingPair: "",
     symbol: "",
   },
   inputState: {
@@ -108,6 +109,15 @@ const stateReducer = (state = initialState, action) => {
         currentSettings: {
           ...state.currentSettings,
           exchangeId: action.payload,
+        },
+      };
+
+    case "SET_TRADING_PAIR":
+      return {
+        ...state,
+        currentSettings: {
+          ...state.currentSettings,
+          tradingPair: action.payload,
         },
       };
 

@@ -14,8 +14,7 @@ const App = () => {
     initFlowbite();
   }, []);
 
-  const [open, setOpen] = React.useState(false);
-  const handleOpen = () => setOpen(!open);
+  const [open, setOpen] = React.useState(true);
 
   return (
     <div className="min-h-full flex flex-col">

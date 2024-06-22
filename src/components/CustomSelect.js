@@ -21,6 +21,34 @@ const CustomSelect = ({
     React.useState(selections);
   const [query, setQuery] = React.useState("");
 
+  const [rows, setRows] = React.useState({});
+
+  React.useEffect(() => {
+    setRows((prev) => {
+      const obj = {};
+      _.forEach(selections, (selection) => {
+        obj[selection[valueKey]] = (
+          <Option
+            autoFocus={false}
+            key={selection[keyKey]}
+            value={selection[valueKey]}
+            className="flex items-center gap-2"
+          >
+            {showLogo && (
+              <img
+                src={selection[logoKey]}
+                alt={selection[nameKey]}
+                className="h-5 w-5 rounded-full object-cover"
+              />
+            )}
+            {selection[nameKey]}
+          </Option>
+        );
+      });
+      return obj;
+    });
+  }, [selections]);
+
   /**
    * @param {React.ChangeEvent<HTMLInputElement>} e
    */
@@ -55,20 +83,25 @@ const CustomSelect = ({
     }
   }, []);
 
+  const [selected, setSelected] = React.useState(defaultValue);
+
   return (
     <Select
-      value={defaultValue}
+      value={rows[selected] && selected}
       key={key}
       size="lg"
       label={label}
       dismiss={false}
-      onChange={onChange}
+      onChange={(val) => {
+        setSelected(val);
+        onChange(val);
+      }}
       selected={(element) =>
-        element &&
-        React.cloneElement(element, {
+        rows[selected] &&
+        React.cloneElement(rows[selected], {
           disabled: true,
           className:
-            "flex items-center opacity-100 px-0 gap-2 pointer-events-none",
+            "flex items-center opacity-100 px-0 gap-2 pointer-events-none !bg-transparent",
         })
       }
     >
@@ -82,28 +115,13 @@ const CustomSelect = ({
             onKeyDownCapture={handleOnKeyDownCapture}
             value={query}
             containerProps={{
-              className: "mb-4",
+              className: "mb-4 sticky top-0 z-10 bg-white",
             }}
           />
         ) : null,
-        ...filteredSelections.map((s) => (
-          <Option
-            onKeyDownCapture={handleOnKeyDownCapture}
-            autoFocus={false}
-            key={s[keyKey]}
-            value={s[valueKey]}
-            className="flex items-center gap-2"
-          >
-            {showLogo && (
-              <img
-                src={s[logoKey]}
-                alt={s[nameKey]}
-                className="h-5 w-5 rounded-full object-cover"
-              />
-            )}
-            {s[nameKey]}
-          </Option>
-        )),
+        ...filteredSelections.map(
+          (selection) => rows[selection[valueKey]] || null
+        ),
       ].filter((item) => item !== null)}
     </Select>
   );

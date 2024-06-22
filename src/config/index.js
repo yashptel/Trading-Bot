@@ -1,4 +1,7 @@
 export default {
+  proxyServer:
+    "https://trade-proxy-git-feature-express-yash-patels-projects-7afb2ed1.vercel.app/v2/proxy",
+  // "http://localhost:8000/v2/proxy",
   exchanges: [
     {
       id: "E0GKF97sIEnbz0i1GeFx2",
