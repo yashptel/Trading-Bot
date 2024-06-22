@@ -32,7 +32,7 @@ const CustomSelect = ({
             autoFocus={false}
             key={selection[keyKey]}
             value={selection[valueKey]}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 text-nowrap"
           >
             {showLogo && (
               <img
@@ -104,6 +104,9 @@ const CustomSelect = ({
             "flex items-center opacity-100 px-0 gap-2 pointer-events-none !bg-transparent",
         })
       }
+      menuProps={{
+        className: "min-w-fit",
+      }}
     >
       {[
         showSearch ? (
