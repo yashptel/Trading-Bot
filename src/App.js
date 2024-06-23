@@ -4,17 +4,12 @@ import { Outlet } from "react-router-dom";
 import "./App.css";
 import { COMPANY_NAME } from "./constants";
 
-import { initFlowbite } from "flowbite";
 import Footer from "./components/footer";
 import { Alert, Button } from "@material-tailwind/react";
 import Settings from "./components/Settings";
 import { connect } from "react-redux";
 
 const App = ({ dynamicElements }) => {
-  useEffect(() => {
-    initFlowbite();
-  }, []);
-
   const [open, setOpen] = React.useState(true);
 
   return (

@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { connect } from "react-redux";
 
 import config from "../config";
-import SettingsModal from "../components/settingsModal";
 import {
   Card,
   CardBody,
@@ -580,8 +579,6 @@ const PositionCalculatorV2 = ({
           </div>
         </CardFooter>
       </Card>
-
-      <SettingsModal />
     </section>
   );
 };

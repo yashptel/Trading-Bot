@@ -8,8 +8,7 @@ import CryptoJS from "crypto-js";
 class Bybit extends Exchange {
   constructor(args) {
     super(args);
-    // this.BASE_URL = "/https:/api.bybit.com";
-    this.BASE_URL = "/https:/api-testnet.bybit.com";
+    this.BASE_URL = import.meta.env.VITE_BYBIT_URL;
   }
 
   async takeTrade({
