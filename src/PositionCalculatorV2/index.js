@@ -32,6 +32,8 @@ import Settings from "../components/Settings";
 import { nanoid } from "@reduxjs/toolkit";
 import {
   calcPositionSize,
+  calcRiskReward,
+  calcTakeProfit,
   inputHandlerNumber,
   roundToSamePrecisionWithCallback,
 } from "../Utils";
@@ -61,6 +63,7 @@ const PositionCalculatorV2 = ({
   const [price, setPrice] = React.useState(0);
   const [stopLoss, setStopLoss] = React.useState(0);
   const [takeProfit, setTakeProfit] = React.useState(0);
+  const [activeTab, setActiveTab] = React.useState("manual");
   const [lossPerTrade, setLossPerTrade] = React.useState(0);
   const [riskRewardRatio, setRiskRewardRatio] = React.useState(0);
 
@@ -279,6 +282,27 @@ const PositionCalculatorV2 = ({
     );
   }, [price, stopLoss, lossPerTrade, tradingPairObj]);
 
+  useEffect(() => {
+    if (activeTab === "manual") {
+      const riskReward = calcRiskReward(
+        _.toNumber(price),
+        _.toNumber(stopLoss),
+        _.toNumber(takeProfit)
+      );
+      roundToSamePrecisionWithCallback(riskReward, 0.01, setRiskRewardRatio);
+    }
+
+    if (activeTab === "rr") {
+      const takeProfit = calcTakeProfit(
+        _.toNumber(price),
+        _.toNumber(stopLoss),
+        _.toNumber(riskRewardRatio)
+      );
+      const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+      roundToSamePrecisionWithCallback(takeProfit, tickSize, setTakeProfit);
+    }
+  }, [price, stopLoss, takeProfit, riskRewardRatio, activeTab]);
+
   return (
     <section className=" dark:bg-gray-900 mt-auto mx-2">
       <Card className="w-full max-w-[26rem] shadow-lg mx-auto relative">
@@ -427,7 +451,7 @@ const PositionCalculatorV2 = ({
               data-form-type="other"
             />
             <div className="w-full">
-              <Tabs value="manual" className="overflow-visible">
+              <Tabs value={activeTab} className="overflow-visible">
                 <TabsBody className="overflow-visible">
                   <TabPanel value="manual" className="p-0">
                     <Input
@@ -474,7 +498,14 @@ const PositionCalculatorV2 = ({
 
                 <TabsHeader className="text-nowrap h-8 text-sm flex mt-4">
                   {data.map(({ label, value }) => (
-                    <Tab key={value} value={value} className="text-xs">
+                    <Tab
+                      key={value}
+                      value={value}
+                      className="text-xs"
+                      onClick={(e) => {
+                        setActiveTab(value);
+                      }}
+                    >
                       {label}
                     </Tab>
                   ))}

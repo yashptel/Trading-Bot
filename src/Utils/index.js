@@ -72,3 +72,17 @@ export const roundToSamePrecision = (number, sample) => {
 export const isNumber = (value) => {
   return /^((\d+)|(\d+\.\d+))$/.test(value);
 };
+
+export const calcRiskReward = (entry, stopLoss, takeProfit) => {
+  const risk = Math.abs(entry - stopLoss);
+  const reward = Math.abs(entry - takeProfit);
+  return reward / risk || 0;
+};
+
+export const calcTakeProfit = (entry, stopLoss, risk) => {
+  const reward = risk * Math.abs(entry - stopLoss);
+  if (entry < stopLoss) {
+    return entry - reward;
+  }
+  return entry + reward;
+};
