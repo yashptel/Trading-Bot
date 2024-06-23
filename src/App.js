@@ -8,8 +8,9 @@ import { initFlowbite } from "flowbite";
 import Footer from "./components/footer";
 import { Alert, Button } from "@material-tailwind/react";
 import Settings from "./components/Settings";
+import { connect } from "react-redux";
 
-const App = () => {
+const App = ({ dynamicElements }) => {
   useEffect(() => {
     initFlowbite();
   }, []);
@@ -34,43 +35,46 @@ const App = () => {
 
       <Footer />
 
-      <Settings />
+      {dynamicElements
+        .filter(({ type }) => type !== "toast")
+        .map(({ component }) => component)}
 
       <div className="fixed bottom-6 right-4 w-80 space-y-4">
-        <Alert
-          className=""
-          animate={{
-            mount: { x: 0 },
-            unmount: { x: 100 },
-          }}
-        >
-          A dismissible alert with custom animation.
-        </Alert>
-        <Alert
-          className=""
-          open={open}
-          onClose={() => setOpen(false)}
-          animate={{
-            mount: { y: 0 },
-            unmount: { y: 100 },
-          }}
-        >
-          A dismissible alert with custom animation.
-        </Alert>
-        <Alert
-          className=""
-          open={false}
-          onClose={() => setOpen(false)}
-          animate={{
-            mount: { y: 0 },
-            unmount: { y: 100 },
-          }}
-        >
-          A dismissible alert with custom animation.
-        </Alert>
+        {dynamicElements
+          .filter(({ type }) => type === "toast")
+          .map(({ component }) => component)}
       </div>
     </div>
   );
 };
 
-export default App;
+const mapStateToProps = (state) => {
+  return {
+    isLoading: state.temporaryState.isLoading,
+    exchangeId: state.currentSettings.exchangeId,
+    tradingPair: state.currentSettings.tradingPair,
+    dynamicElements: state.temporaryState.dynamicElements,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    setIsLoading: (payload) => {
+      dispatch({ type: "SET_IS_LOADING", payload });
+    },
+
+    setCurrentSettingsModal: (payload) => {
+      dispatch({ type: "SET_CURRENT_SETTINGS_MODAL", payload });
+    },
+
+    setExchangeId: (payload) => {
+      dispatch({ type: "SET_EXCHANGE_ID", payload });
+    },
+
+    setTradingPair: (payload) => {
+      dispatch({ type: "SET_TRADING_PAIR", payload });
+    },
+  };
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(App);

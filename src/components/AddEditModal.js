@@ -67,6 +67,7 @@ const AddEditModal = ({
             </div>
 
             <IconButton
+              className="w-full"
               color="gray"
               size="sm"
               variant="text"
@@ -113,6 +114,9 @@ const AddEditModal = ({
               type="text"
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               value={form.name}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
             <Input
               size="lg"
@@ -121,6 +125,9 @@ const AddEditModal = ({
               placeholder="xqAysd38EPaQd5eXzEmk"
               onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
               value={form.apiKey}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
             <Input
               size="lg"
@@ -129,6 +136,9 @@ const AddEditModal = ({
               placeholder="**********"
               onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
               value={form.secretKey}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
             <Input
               size="lg"
@@ -137,6 +147,9 @@ const AddEditModal = ({
               placeholder="**********"
               onChange={(e) => setForm({ ...form, passphrase: e.target.value })}
               value={form.passphrase}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
           </CardBody>
           <CardFooter className="pt-0 flex justify-end gap-2">
@@ -147,10 +160,10 @@ const AddEditModal = ({
                 handleCancel();
               }}
             >
-              Reset
+              Cancel
             </Button>
             <Button
-              variant="gradient"
+              variant="filled"
               onClick={(e) => {
                 if (id) {
                   updateApiCredentials({ ...form, id });

@@ -94,6 +94,7 @@ const CustomSelect = ({
       dismiss={false}
       onChange={(val) => {
         setSelected(val);
+        setQuery("");
         onChange(val);
       }}
       selected={(element) =>

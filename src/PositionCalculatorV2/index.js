@@ -27,8 +27,17 @@ import {
 } from "@material-tailwind/react";
 import CustomSelect from "../components/CustomSelect";
 import { CheckIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
-import { useCopyToClipboard } from "usehooks-ts";
+
 import getTradeInstance from "../trade";
+import Settings from "../components/Settings";
+import { nanoid } from "@reduxjs/toolkit";
+import {
+  calcPositionSize,
+  inputHandlerNumber,
+  roundToSamePrecisionWithCallback,
+} from "../Utils";
+import _ from "lodash";
+import CustomAlert from "../components/CustomAlert";
 
 const PositionCalculatorV2 = ({
   isLoading,
@@ -40,17 +49,29 @@ const PositionCalculatorV2 = ({
 
   tradingPair,
   setTradingPair,
+
+  addDynamicElement,
+  removeDynamicElement,
+
+  apiCredentials,
 }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
 
   const [marketPrice, setMarketPrice] = React.useState(0);
   const [price, setPrice] = React.useState(0);
+  const [stopLoss, setStopLoss] = React.useState(0);
+  const [takeProfit, setTakeProfit] = React.useState(0);
+  const [lossPerTrade, setLossPerTrade] = React.useState(0);
+  const [riskRewardRatio, setRiskRewardRatio] = React.useState(0);
 
-  const [value, copy] = useCopyToClipboard();
+  const [positionSize, setPositionSize] = React.useState(0);
+
   const [copied, setCopied] = React.useState(false);
 
   const [tradingPairs, setTradingPairs] = React.useState([]);
+
+  const [tradingPairObj, setTradingPairObj] = React.useState();
 
   const data = [
     {
@@ -63,10 +84,150 @@ const PositionCalculatorV2 = ({
     },
   ];
 
+  async function copyToClipboard(textToCopy) {
+    // Navigator clipboard api needs a secure context (https)
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(textToCopy);
+    } else {
+      // Use the 'out of viewport hidden text area' trick
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+
+      // Move textarea out of the viewport so it's not visible
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+
+      document.body.prepend(textArea);
+      textArea.select();
+
+      try {
+        document.execCommand("copy");
+      } catch (error) {
+        console.error(error);
+      } finally {
+        textArea.remove();
+      }
+    }
+  }
+
+  // const addToast = ({ type = "generic", message = "" }) => {
+  //   const modalId = nanoid();
+
+  //   const removeModal = () => {
+  //     setTimeout(() => {
+  //       removeDynamicElement(modalId);
+  //     }, 300);
+  //   };
+
+  //   addDynamicElement({
+  //     id: modalId,
+  //     type: "toast",
+  //     component: (
+  //       <CustomAlert onClose={removeModal} type={type}>
+  //         {message}
+  //       </CustomAlert>
+  //     ),
+  //   });
+  // };
+
+  const addToast = React.useCallback(({ type = "generic", message = "" }) => {
+    const modalId = nanoid();
+
+    const removeModal = () => {
+      setTimeout(() => {
+        removeDynamicElement(modalId);
+      }, 300);
+    };
+
+    addDynamicElement({
+      id: modalId,
+      type: "toast",
+      component: (
+        <CustomAlert key={modalId} onClose={removeModal} type={type}>
+          {message}
+        </CustomAlert>
+      ),
+    });
+  }, []);
+
+  const takeTrade = React.useCallback(
+    async (args) => {
+      const apiCredential = _.find(apiCredentials, { exchangeId });
+      if (!apiCredential) {
+        addToast({
+          type: "error",
+          message: "Failed to take trade. API Credential not found",
+        });
+        return;
+      }
+
+      const client = getTradeInstance(exchangeId, {
+        apiKey: apiCredential.apiKey,
+        secret: apiCredential.secretKey,
+        passphrase: apiCredential.passphrase,
+      });
+      if (!client) {
+        addToast({
+          type: "error",
+          message: "Failed to take trade. Client not supported",
+        });
+        return;
+      }
+
+      const { success, message } = await client.takeTrade(args);
+
+      const modalId = nanoid();
+
+      const removeModal = () => {
+        setTimeout(() => {
+          removeDynamicElement(modalId);
+        }, 300);
+      };
+
+      addDynamicElement({
+        id: modalId,
+        type: "toast",
+        component: (
+          <CustomAlert
+            onClose={removeModal}
+            type={success ? "success" : "error"}
+          >
+            {message}
+          </CustomAlert>
+        ),
+      });
+    },
+
+    [apiCredentials, exchangeId]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!copied) {
+      return;
+    }
+    setTimeout(() => {
+      if (cancelled) return;
+      setCopied(false);
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [copied]);
+
+  useEffect(() => {
+    if (!tradingPairs.length) return;
+    const pair = _.find(tradingPairs, { searchName: tradingPair });
+    setTradingPairObj(pair);
+  }, [tradingPair, tradingPairs]);
+
   useEffect(() => {
     let cancelled = false;
     const client = getTradeInstance(exchangeId);
-    if (!client) return;
+    if (!client) {
+      return setTradingPairs([]);
+    }
 
     client.getAllTradingPairs().then((res) => {
       if (cancelled) return;
@@ -79,15 +240,22 @@ const PositionCalculatorV2 = ({
   }, [exchangeId]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      const randomPrice = Math.floor(Math.random() * 100000);
-      setMarketPrice(randomPrice);
-    }, 100);
+    let cancelled = false;
+
+    const client = getTradeInstance(exchangeId);
+    if (!client) return;
+    if (!tradingPair) return;
+
+    const onClose = client.getLastPrice(tradingPair, (price) => {
+      if (cancelled) return;
+      setMarketPrice(price);
+    });
 
     return () => {
-      clearInterval(id);
+      cancelled = true;
+      onClose();
     };
-  }, []);
+  }, [exchangeId, tradingPair]);
 
   useEffect(() => {
     if (useMarketOrder || useMarketPrice) {
@@ -95,8 +263,25 @@ const PositionCalculatorV2 = ({
     }
   }, [marketPrice, useMarketOrder, useMarketPrice]);
 
+  useEffect(() => {
+    const positionSize = calcPositionSize(
+      _.toNumber(price),
+      _.toNumber(lossPerTrade),
+      _.toNumber(stopLoss)
+    );
+    if (_.isNaN(positionSize)) return;
+
+    const quantityStep = _.get(tradingPairObj, "quantityStep", 0.0001);
+
+    roundToSamePrecisionWithCallback(
+      positionSize,
+      quantityStep,
+      setPositionSize
+    );
+  }, [price, stopLoss, lossPerTrade, tradingPairObj]);
+
   return (
-    <section className=" dark:bg-gray-900 lg:mt-auto ">
+    <section className=" dark:bg-gray-900 mt-auto mx-2">
       <Card className="w-full max-w-[26rem] shadow-lg mx-auto relative">
         <div
           className={`flex justify-center items-center rounded-xl absolute top-0 right-0 left-0 bottom-0 z-50 backdrop-blur-sm transition-all duration-300 ${
@@ -137,7 +322,25 @@ const PositionCalculatorV2 = ({
               className="w-28"
               size="md"
               onClickCapture={(e) => {
-                setCurrentSettingsModal(true);
+                const modalId = nanoid();
+
+                const removeModal = () => {
+                  setTimeout(() => {
+                    removeDynamicElement(modalId);
+                  }, 300);
+                };
+
+                addDynamicElement({
+                  id: modalId,
+                  component: (
+                    <Settings
+                      key={modalId}
+                      handleCancel={() => {
+                        removeModal();
+                      }}
+                    />
+                  ),
+                });
               }}
             >
               <svg
@@ -158,17 +361,28 @@ const PositionCalculatorV2 = ({
           <div className="!-mb-1 md:!-mb-1">
             <div className="relative">
               <Input
+                type="tel"
                 size="lg"
                 label="Limit Price"
                 disabled={useMarketOrder}
                 onChange={(e) => {
                   if (!useMarketOrder) {
-                    setPrice(e.target.value);
+                    const callbackFn = (val) => {
+                      const tickSize = _.get(
+                        tradingPairObj,
+                        "tickSize",
+                        0.0001
+                      );
+                      roundToSamePrecisionWithCallback(val, tickSize, setPrice);
+                    };
+                    inputHandlerNumber(e.target.value, callbackFn);
                   }
                 }}
                 onFocusCapture={(e) => setUseMarketPrice(false)}
-                type="text"
                 value={price}
+                autocomplete="false"
+                data-lpignore="true"
+                data-form-type="other"
               />
               <Button
                 size="md"
@@ -197,11 +411,68 @@ const PositionCalculatorV2 = ({
           </div>
 
           <div className="flex flex-grow gap-2">
-            <Input size="lg" label="Limit Price" type="text" />
+            <Input
+              type="tel"
+              size="lg"
+              label="Stop Loss"
+              value={stopLoss}
+              onChange={(e) => {
+                const callbackFn = (val) => {
+                  const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+                  roundToSamePrecisionWithCallback(val, tickSize, setStopLoss);
+                };
+                inputHandlerNumber(e.target.value, callbackFn);
+              }}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
+            />
             <div className="w-full">
-              <Input size="lg" label="Limit Price" type="text" />
+              <Tabs value="manual" className="overflow-visible">
+                <TabsBody className="overflow-visible">
+                  <TabPanel value="manual" className="p-0">
+                    <Input
+                      type="tel"
+                      size="lg"
+                      label="Take Profit"
+                      value={takeProfit}
+                      onChange={(e) => {
+                        const callbackFn = (val) => {
+                          const tickSize = _.get(
+                            tradingPairObj,
+                            "tickSize",
+                            0.0001
+                          );
+                          roundToSamePrecisionWithCallback(
+                            val,
+                            tickSize,
+                            setTakeProfit
+                          );
+                        };
 
-              <Tabs value="manual">
+                        inputHandlerNumber(e.target.value, callbackFn);
+                      }}
+                      autocomplete="false"
+                      data-lpignore="true"
+                      data-form-type="other"
+                    />
+                  </TabPanel>
+                  <TabPanel value="rr" className="p-0">
+                    <Input
+                      type="tel"
+                      size="lg"
+                      label="Risk Reward Ratio"
+                      value={riskRewardRatio}
+                      onChange={(e) => {
+                        inputHandlerNumber(e.target.value, setRiskRewardRatio);
+                      }}
+                      autocomplete="false"
+                      data-lpignore="true"
+                      data-form-type="other"
+                    />
+                  </TabPanel>
+                </TabsBody>
+
                 <TabsHeader className="text-nowrap h-8 text-sm flex mt-4">
                   {data.map(({ label, value }) => (
                     <Tab key={value} value={value} className="text-xs">
@@ -215,10 +486,16 @@ const PositionCalculatorV2 = ({
 
           <div>
             <Input
+              type="tel"
               size="lg"
-              label="Limit Price"
-              onFocusCapture={(e) => setUseMarketPrice(false)}
-              type="text"
+              label="Loss Per Trade"
+              value={lossPerTrade}
+              onChange={(e) => {
+                inputHandlerNumber(e.target.value, setLossPerTrade);
+              }}
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
             <div className="flex gap-2 mt-2">
               {[1, 3, 5, 6, 8, 9].map((i) => {
@@ -236,23 +513,20 @@ const PositionCalculatorV2 = ({
 
           <div className="relative flex w-full">
             <Input
+              type="tel"
               size="lg"
-              label="Limit Price"
-              onFocusCapture={(e) => setUseMarketPrice(false)}
-              type="text"
-              containerProps={{
-                className: "",
-              }}
+              value={positionSize}
+              label="Position Size"
+              autocomplete="false"
+              data-lpignore="true"
+              data-form-type="other"
             />
 
             <IconButton
               size="md"
               className="!absolute right-1 top-1 rounded h-9 flex items-center"
-              onMouseLeave={() =>
-                setTimeout(() => copied && setCopied(false), 1000)
-              }
               onClick={() => {
-                copy("npm i @material-tailwind/react");
+                copyToClipboard(positionSize);
                 setCopied(true);
               }}
             >
@@ -271,11 +545,15 @@ const PositionCalculatorV2 = ({
               color="green"
               fullWidth={true}
               onClickCapture={(e) => {
-                setIsLoading(true);
-
-                setTimeout(() => {
-                  setIsLoading(false);
-                }, 3000);
+                takeTrade({
+                  originalSymbol: tradingPairObj?.originalSymbol,
+                  side: "BUY",
+                  price,
+                  stopLoss,
+                  takeProfit,
+                  quantity: positionSize,
+                  type: useMarketOrder ? "MARKET" : "LIMIT",
+                });
               }}
             >
               Long
@@ -286,11 +564,15 @@ const PositionCalculatorV2 = ({
               color="red"
               fullWidth={true}
               onClickCapture={(e) => {
-                setIsLoading(true);
-
-                setTimeout(() => {
-                  setIsLoading(false);
-                }, 3000);
+                takeTrade({
+                  originalSymbol: tradingPairObj.originalSymbol,
+                  side: "SELL",
+                  price,
+                  stopLoss,
+                  takeProfit,
+                  quantity: positionSize,
+                  type: useMarketOrder ? "MARKET" : "LIMIT",
+                });
               }}
             >
               Short
@@ -309,6 +591,7 @@ const mapStateToProps = (state) => {
     isLoading: state.temporaryState.isLoading,
     exchangeId: state.currentSettings.exchangeId,
     tradingPair: state.currentSettings.tradingPair,
+    apiCredentials: state.apiCredentials,
   };
 };
 
@@ -332,6 +615,13 @@ const mapDispatchToProps = (dispatch) => {
 
     setTradingPair: (payload) => {
       dispatch({ type: "SET_TRADING_PAIR", payload });
+    },
+    addDynamicElement: (payload) => {
+      dispatch({ type: "ADD_DYNAMIC_ELEMENT", payload });
+    },
+
+    removeDynamicElement: (payload) => {
+      dispatch({ type: "REMOVE_DYNAMIC_ELEMENT", payload });
     },
   };
 };

@@ -46,60 +46,6 @@ import { connect } from "react-redux";
 import config from "../config";
 import { nanoid } from "@reduxjs/toolkit";
 
-const TABLE_ROW = [
-  {
-    img: "/logos/btc.png",
-    digitalAsset: "BTC",
-    detail: "Bitcoin",
-    price: "$46,727.30",
-    change: "+2.92%",
-    volume: "$45.31B",
-    market: "$915.61B",
-    color: "green",
-    trend: 4,
-  },
-  {
-    img: "/logos/eth.png",
-    digitalAsset: "ETH",
-    detail: "Ethereum",
-    price: "$2,609.30",
-    change: "+6.80%",
-    volume: "$23.42B",
-    market: "$313.58B",
-    color: "green",
-  },
-  {
-    img: "/logos/usdt.png",
-    digitalAsset: "USDT",
-    detail: "TetherUS",
-    price: "$1.00",
-    change: "-0.01%",
-    volume: "$94.37B",
-    market: "$40,600",
-    color: "red",
-  },
-  {
-    img: "/logos/sol.png",
-    digitalAsset: "SOL",
-    detail: "Solana",
-    price: "$1.00",
-    change: "+6.35%",
-    volume: "$3.48B",
-    market: "$43.26B",
-    color: "green",
-  },
-  {
-    img: "/logos/xrp.png",
-    digitalAsset: "XRP",
-    detail: "Ripple",
-    price: "$100.19",
-    change: "-0.95%",
-    volume: "$1.81B",
-    market: "$32.45B",
-    color: "red",
-  },
-];
-
 const TABLE_HEAD = [
   {
     head: "Exchange",
@@ -130,22 +76,25 @@ const TABLE_HEAD = [
 
 export function Settings({
   isLoading,
+
+  defaultState = true,
+
   isSettingsModalOpen,
   setCurrentSettingsModal,
   apiCredentials,
   deleteApiCredentials,
+  handleCancel,
+  addDynamicElement,
+  removeDynamicElement,
 }) {
-  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
-  const [addEditModalOpen, setaddEditModalOpen] = React.useState(false);
-
-  const [modals, setModals] = React.useState([]);
+  const [open, setOpen] = React.useState(defaultState);
 
   return (
     <>
       <Dialog
         className="p-4 min-w-[95%]"
         size="lg"
-        open={isSettingsModalOpen}
+        open={open}
         handler={() => {}}
       >
         <DialogHeader className="justify-between">
@@ -156,7 +105,10 @@ export function Settings({
             color="gray"
             size="sm"
             variant="text"
-            onClick={() => setCurrentSettingsModal(false)}
+            onClick={() => {
+              setOpen(false);
+              handleCancel();
+            }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -215,30 +167,23 @@ export function Settings({
 
                         const removeModal = () => {
                           setTimeout(() => {
-                            setModals((prev) => {
-                              return prev.filter((item) => item.id !== modalId);
-                            });
+                            removeDynamicElement(modalId);
                           }, 300);
                         };
 
-                        setModals((prev) => {
-                          return [
-                            ...prev,
-                            {
-                              id: modalId,
-                              html: (
-                                <AddEditModal
-                                  key={modalId}
-                                  handleCancel={() => {
-                                    removeModal();
-                                  }}
-                                  handleConfirm={() => {
-                                    removeModal();
-                                  }}
-                                />
-                              ),
-                            },
-                          ];
+                        addDynamicElement({
+                          id: modalId,
+                          component: (
+                            <AddEditModal
+                              key={modalId}
+                              handleCancel={() => {
+                                removeModal();
+                              }}
+                              handleConfirm={() => {
+                                removeModal();
+                              }}
+                            />
+                          ),
                         });
                       }}
                     >
@@ -285,7 +230,7 @@ export function Settings({
                           (item) => item.id === exchangeId
                         );
 
-                        const isLast = index === TABLE_ROW.length - 1;
+                        const isLast = index === apiCredentials.length - 1;
                         const classes =
                           (isLast ? "!p-4 " : "!p-4 border-b border-gray-300") +
                           " max-w-[160px]";
@@ -351,33 +296,24 @@ export function Settings({
 
                                     const removeModal = () => {
                                       setTimeout(() => {
-                                        setModals((prev) => {
-                                          return prev.filter(
-                                            (item) => item.id !== modalId
-                                          );
-                                        });
+                                        removeDynamicElement(modalId);
                                       }, 300);
                                     };
 
-                                    setModals((prev) => {
-                                      return [
-                                        ...prev,
-                                        {
-                                          id: modalId,
-                                          html: (
-                                            <AddEditModal
-                                              id={id}
-                                              key={modalId}
-                                              handleCancel={() => {
-                                                removeModal();
-                                              }}
-                                              handleConfirm={() => {
-                                                removeModal();
-                                              }}
-                                            />
-                                          ),
-                                        },
-                                      ];
+                                    addDynamicElement({
+                                      id: modalId,
+                                      component: (
+                                        <AddEditModal
+                                          id={id}
+                                          key={modalId}
+                                          handleCancel={() => {
+                                            removeModal();
+                                          }}
+                                          handleConfirm={() => {
+                                            removeModal();
+                                          }}
+                                        />
+                                      ),
                                     });
                                   }}
                                 >
@@ -387,43 +323,34 @@ export function Settings({
                                   variant="text"
                                   size="sm"
                                   onClick={(e) => {
-                                    setModals((prev) => {
-                                      const modalId = nanoid();
+                                    const modalId = nanoid();
 
-                                      const removeModal = () => {
-                                        setTimeout(() => {
-                                          setModals((prev) => {
-                                            return prev.filter(
-                                              (item) => item.id !== modalId
-                                            );
-                                          });
-                                        }, 300);
-                                      };
+                                    const removeModal = () => {
+                                      setTimeout(() => {
+                                        removeDynamicElement(modalId);
+                                      }, 300);
+                                    };
 
-                                      return [
-                                        ...prev,
-                                        {
-                                          id: modalId,
-                                          html: (
-                                            <ConfirmModal
-                                              key={modalId}
-                                              title={"Delete Item"}
-                                              handleCancel={() => {
-                                                removeModal();
-                                              }}
-                                              handleConfirm={() => {
-                                                deleteApiCredentials(id);
-                                                removeModal();
-                                              }}
-                                            >
-                                              <Typography variant="paragraph">
-                                                Are you sure you want to delete
-                                                this item?
-                                              </Typography>
-                                            </ConfirmModal>
-                                          ),
-                                        },
-                                      ];
+                                    addDynamicElement({
+                                      id: modalId,
+                                      component: (
+                                        <ConfirmModal
+                                          key={modalId}
+                                          title={"Delete Item"}
+                                          handleCancel={() => {
+                                            removeModal();
+                                          }}
+                                          handleConfirm={() => {
+                                            deleteApiCredentials(id);
+                                            removeModal();
+                                          }}
+                                        >
+                                          <Typography variant="paragraph">
+                                            Are you sure you want to delete this
+                                            item?
+                                          </Typography>
+                                        </ConfirmModal>
+                                      ),
                                     });
                                   }}
                                 >
@@ -452,8 +379,6 @@ export function Settings({
           Are you sure you want to delete this item?
         </Typography>
       </ConfirmModal> */}
-
-      {modals.map(({ id, html }) => html)}
     </>
   );
 }
@@ -482,6 +407,14 @@ const mapDispatchToProps = (dispatch) => {
 
     deleteApiCredentials: (payload) => {
       dispatch({ type: "DELETE_API_CREDENTIALS", payload });
+    },
+
+    addDynamicElement: (payload) => {
+      dispatch({ type: "ADD_DYNAMIC_ELEMENT", payload });
+    },
+
+    removeDynamicElement: (payload) => {
+      dispatch({ type: "REMOVE_DYNAMIC_ELEMENT", payload });
     },
   };
 };

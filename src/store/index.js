@@ -2,6 +2,7 @@ import { configureStore, nanoid } from "@reduxjs/toolkit";
 import { persistStore, persistReducer } from "redux-persist";
 import localForage from "localforage";
 import { encryptTransform } from "redux-persist-transform-encrypt";
+import _ from "lodash";
 
 const SECRET_KEY = "H6&Xb?$Q4ta9e68EPHkk";
 
@@ -19,8 +20,9 @@ const initialState = {
   },
   apiCredentials: [],
   temporaryState: {
-    isLoading: false,
+    isLoading: 0,
     isSettingsModalOpen: false,
+    dynamicElements: [],
   },
 };
 
@@ -84,7 +86,9 @@ const stateReducer = (state = initialState, action) => {
         ...state,
         temporaryState: {
           ...state.temporaryState,
-          isLoading: action.payload,
+          isLoading: action.payload
+            ? state.temporaryState.isLoading + 1
+            : _.max([state.temporaryState.isLoading - 1, 0]),
         },
       };
 
@@ -121,6 +125,29 @@ const stateReducer = (state = initialState, action) => {
         },
       };
 
+    case "ADD_DYNAMIC_ELEMENT":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          dynamicElements: [
+            ...state.temporaryState.dynamicElements,
+            action.payload,
+          ],
+        },
+      };
+
+    case "REMOVE_DYNAMIC_ELEMENT":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          dynamicElements: state.temporaryState.dynamicElements.filter(
+            (item) => item.id !== action.payload
+          ),
+        },
+      };
+
     default:
       return state;
   }
@@ -131,6 +158,10 @@ const persistedReducer = persistReducer(persistConfig, stateReducer);
 export const store = configureStore({
   reducer: persistedReducer,
   devTools: process.env.NODE_ENV !== "production",
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
 
 export const persistor = persistStore(store);
