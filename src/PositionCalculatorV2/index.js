@@ -68,6 +68,7 @@ const PositionCalculatorV2 = ({
   const [riskRewardRatio, setRiskRewardRatio] = React.useState(0);
 
   const [positionSize, setPositionSize] = React.useState(0);
+  const [positionAmount, setPositionAmount] = React.useState(0);
 
   const [copied, setCopied] = React.useState(false);
 
@@ -266,20 +267,19 @@ const PositionCalculatorV2 = ({
   }, [marketPrice, useMarketOrder, useMarketPrice]);
 
   useEffect(() => {
-    const positionSize = calcPositionSize(
+    const [positionSz, positionAmt] = calcPositionSize(
       _.toNumber(price),
       _.toNumber(lossPerTrade),
       _.toNumber(stopLoss)
     );
-    if (_.isNaN(positionSize)) return;
+    if (_.isNaN(positionSz)) return;
 
     const quantityStep = _.get(tradingPairObj, "quantityStep", 0.0001);
+    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
 
-    roundToSamePrecisionWithCallback(
-      positionSize,
-      quantityStep,
-      setPositionSize
-    );
+    roundToSamePrecisionWithCallback(positionSz, quantityStep, setPositionSize);
+
+    roundToSamePrecisionWithCallback(positionAmt, tickSize, setPositionAmount);
   }, [price, stopLoss, lossPerTrade, tradingPairObj]);
 
   useEffect(() => {
@@ -479,6 +479,13 @@ const PositionCalculatorV2 = ({
                       data-lpignore="true"
                       data-form-type="other"
                     />
+
+                    <Chip
+                      value={`≈ ${riskRewardRatio}:1`}
+                      variant="ghost"
+                      size="sm"
+                      className="!absolute right-1 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
+                    />
                   </TabPanel>
                   <TabPanel value="rr" className="p-0">
                     <Input
@@ -492,6 +499,13 @@ const PositionCalculatorV2 = ({
                       autocomplete="false"
                       data-lpignore="true"
                       data-form-type="other"
+                    />
+
+                    <Chip
+                      value={`≈ $${takeProfit}`}
+                      variant="ghost"
+                      size="sm"
+                      className="!absolute right-1 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
                     />
                   </TabPanel>
                 </TabsBody>
@@ -550,6 +564,13 @@ const PositionCalculatorV2 = ({
               autocomplete="false"
               data-lpignore="true"
               data-form-type="other"
+            />
+
+            <Chip
+              value={`≈ $${positionAmount}`}
+              variant="ghost"
+              size="sm"
+              className="!absolute right-14 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
             />
 
             <IconButton

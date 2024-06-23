@@ -49,7 +49,7 @@ export const roundToSamePrecisionWithCallback = (value, sample, callbackFn) => {
  * @param {number} price - The price of the asset.
  * @param {number} risk - The risk percentage.
  * @param {number} stopLoss - The stop loss.
- * @returns {number} The position size.
+ * @returns {[number, number]} - The position size and amount.
  */
 export const calcPositionSize = (price, risk, stopLoss) => {
   const difference = Math.abs(stopLoss - price);
@@ -58,7 +58,7 @@ export const calcPositionSize = (price, risk, stopLoss) => {
   const positionAmount = (100 / percentage) * risk;
   const positionSize = positionAmount / price;
 
-  return positionSize;
+  return [positionSize, positionAmount];
 };
 
 export const roundToSamePrecision = (number, sample) => {
