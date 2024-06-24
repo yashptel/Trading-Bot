@@ -494,7 +494,9 @@ const PositionCalculatorV2 = ({
                       label="Risk Reward Ratio"
                       value={riskRewardRatio}
                       onChange={(e) => {
-                        inputHandlerNumber(e.target.value, setRiskRewardRatio);
+                        inputHandlerNumber(e.target.value, setRiskRewardRatio, {
+                          allowNegative: true,
+                        });
                       }}
                       autocomplete="false"
                       data-lpignore="true"

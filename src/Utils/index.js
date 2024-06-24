@@ -25,14 +25,29 @@ export const hideInformation = (info) => {
  * @param {Function} callbackFn - The function to be called.
  * @returns {void}
  */
-export const inputHandlerNumber = (value, callbackFn) => {
+export const inputHandlerNumber = (
+  value,
+  callbackFn,
+  { allowNegative = false } = {}
+) => {
   const valid = /^\d*\.?\d*$/.test(value);
-  if (!valid) {
+  const validNegative = /^0*-?\d*\.?\d*$/.test(value);
+
+  if ((!allowNegative && !valid) || (allowNegative && !validNegative)) {
     return;
   }
   if (/^0\d/.test(value)) {
     return callbackFn(_.replace(value, /^0/, ""));
   }
+
+  if (/^0*-/.test(value)) {
+    return callbackFn(_.replace(value, /^0*-/, "-"));
+  }
+
+  if (/-0+\d/.test(value)) {
+    return callbackFn(_.replace(value, /^-0+/, "-"));
+  }
+
   return callbackFn(value || 0);
 };
 
@@ -70,28 +85,26 @@ export const roundToSamePrecision = (number, sample) => {
 };
 
 export const isNumber = (value) => {
-  return /^((\d+)|(\d+\.\d+))$/.test(value);
+  return /^((-?\d+)|(-?\d+\.\d+))$/.test(value);
 };
 
 export const calcRiskReward = (entry, stopLoss, takeProfit) => {
-  if (takeProfit === 0) {
-    return 0;
-  }
-
   const risk = Math.abs(entry - stopLoss);
   const reward = Math.abs(entry - takeProfit);
+
+  if (
+    (stopLoss <= takeProfit && takeProfit <= entry) ||
+    (stopLoss >= takeProfit && takeProfit >= entry)
+  ) {
+    return -(reward / risk) || 0;
+  }
+
   return reward / risk || 0;
 };
 
 export const calcTakeProfit = (entry, stopLoss, risk) => {
+  risk = risk || 0;
   const reward = risk * Math.abs(entry - stopLoss);
-
-  if (risk < 1) {
-    if (entry < stopLoss) {
-      return entry + reward;
-    }
-    return entry - reward;
-  }
 
   if (entry < stopLoss) {
     return entry - reward;
