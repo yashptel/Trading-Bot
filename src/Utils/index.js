@@ -76,12 +76,25 @@ export const calcPositionSize = (price, risk, stopLoss) => {
   return [positionSize, positionAmount];
 };
 
+/**
+ * Round a number to the same precision as a sample number.
+ * @param {number|string} number - The number to round.
+ * @param {number|string} sample - The number to use as a sample.
+ * @returns {string} - The rounded number.
+ */
 export const roundToSamePrecision = (number, sample) => {
   // Get the number of decimal places in the sample number.
   const decimalPlaces = _(sample).toString().split(".")[1]?.length || 0;
-
-  // Round the number to the same number of decimal places.
-  return _.round(number, decimalPlaces);
+  const arr = _.toString(number).split(".");
+  if (arr.length === 1) {
+    return number;
+  }
+  const [int, dec] = arr;
+  const newDec = dec.slice(0, decimalPlaces);
+  if (newDec.length === 0) {
+    return int;
+  }
+  return `${int}.${newDec}`;
 };
 
 export const isNumber = (value) => {
