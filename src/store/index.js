@@ -20,6 +20,7 @@ const initialState = {
   },
   apiCredentials: [],
   temporaryState: {
+    visibilityChange: 0,
     isLoading: 0,
     isSettingsModalOpen: false,
     dynamicElements: [],
@@ -145,6 +146,15 @@ const stateReducer = (state = initialState, action) => {
           dynamicElements: state.temporaryState.dynamicElements.filter(
             (item) => item.id !== action.payload
           ),
+        },
+      };
+
+    case "SET_VISIBILITY_CHANGE":
+      return {
+        ...state,
+        temporaryState: {
+          ...state.temporaryState,
+          visibilityChange: state.temporaryState.visibilityChange + 1,
         },
       };
 

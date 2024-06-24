@@ -55,6 +55,7 @@ const PositionCalculatorV2 = ({
   removeDynamicElement,
 
   apiCredentials,
+  visibilityChange,
 }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
@@ -258,7 +259,7 @@ const PositionCalculatorV2 = ({
       cancelled = true;
       onClose();
     };
-  }, [exchangeId, tradingPair]);
+  }, [exchangeId, tradingPair, visibilityChange]);
 
   useEffect(() => {
     if (useMarketOrder || useMarketPrice) {
@@ -642,6 +643,7 @@ const mapStateToProps = (state) => {
     isLoading: state.temporaryState.isLoading,
     exchangeId: state.currentSettings.exchangeId,
     tradingPair: state.currentSettings.tradingPair,
+    visibilityChange: state.temporaryState.visibilityChange,
     apiCredentials: state.apiCredentials,
   };
 };

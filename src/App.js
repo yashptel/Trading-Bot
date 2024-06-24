@@ -9,8 +9,21 @@ import { Alert, Button } from "@material-tailwind/react";
 import Settings from "./components/Settings";
 import { connect } from "react-redux";
 
-const App = ({ dynamicElements }) => {
-  const [open, setOpen] = React.useState(true);
+const App = ({ dynamicElements, incrementVisibilityChange }) => {
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        incrementVisibilityChange();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   return (
     <div className="min-h-full flex flex-col">
@@ -68,6 +81,10 @@ const mapDispatchToProps = (dispatch) => {
 
     setTradingPair: (payload) => {
       dispatch({ type: "SET_TRADING_PAIR", payload });
+    },
+
+    incrementVisibilityChange: () => {
+      dispatch({ type: "SET_VISIBILITY_CHANGE" });
     },
   };
 };
