@@ -74,6 +74,10 @@ export const isNumber = (value) => {
 };
 
 export const calcRiskReward = (entry, stopLoss, takeProfit) => {
+  if (takeProfit === 0) {
+    return 0;
+  }
+
   const risk = Math.abs(entry - stopLoss);
   const reward = Math.abs(entry - takeProfit);
   return reward / risk || 0;
@@ -81,6 +85,14 @@ export const calcRiskReward = (entry, stopLoss, takeProfit) => {
 
 export const calcTakeProfit = (entry, stopLoss, risk) => {
   const reward = risk * Math.abs(entry - stopLoss);
+
+  if (risk < 1) {
+    if (entry < stopLoss) {
+      return entry + reward;
+    }
+    return entry - reward;
+  }
+
   if (entry < stopLoss) {
     return entry - reward;
   }

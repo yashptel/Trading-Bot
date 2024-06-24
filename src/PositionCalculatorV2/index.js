@@ -484,7 +484,7 @@ const PositionCalculatorV2 = ({
                       value={`≈ ${riskRewardRatio}:1`}
                       variant="ghost"
                       size="sm"
-                      className="!absolute right-1 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
+                      className="!absolute right-2 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
                     />
                   </TabPanel>
                   <TabPanel value="rr" className="p-0">
@@ -505,7 +505,7 @@ const PositionCalculatorV2 = ({
                       value={`≈ $${takeProfit}`}
                       variant="ghost"
                       size="sm"
-                      className="!absolute right-1 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
+                      className="!absolute right-2 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
                     />
                   </TabPanel>
                 </TabsBody>
