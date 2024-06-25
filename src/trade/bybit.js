@@ -9,6 +9,7 @@ class Bybit extends Exchange {
   constructor(args) {
     super(args);
     this.BASE_URL = import.meta.env.VITE_BYBIT_URL;
+    this.SOCKET_ADDRESS = import.meta.env.VITE_BYBIT_SOCKET_ADDRESS;
   }
 
   async takeTrade({
@@ -152,7 +153,7 @@ class Bybit extends Exchange {
   }
 
   getLastPrice(pair, callback) {
-    const socketAddress = "wss://stream.bybit.com/v5/public/linear";
+    const socketAddress = this.SOCKET_ADDRESS;
     const ws = new WebSocket(socketAddress);
 
     let isLoading = 0;
