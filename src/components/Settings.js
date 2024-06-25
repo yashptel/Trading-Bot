@@ -247,7 +247,7 @@ export function Settings({
                                   variant="small"
                                   className="!font-normal text-gray-600"
                                 >
-                                  {name}
+                                  {exchange?.name || "N/A"}
                                 </Typography>
                                 <div></div>
                               </div>
