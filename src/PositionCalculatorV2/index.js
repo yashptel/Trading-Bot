@@ -221,7 +221,6 @@ const PositionCalculatorV2 = ({
   }, [copied]);
 
   useEffect(() => {
-    if (!tradingPairs.length) return;
     const pair = _.find(tradingPairs, { searchName: tradingPair });
     setTradingPairObj(pair);
   }, [tradingPair, tradingPairs]);
@@ -248,18 +247,21 @@ const PositionCalculatorV2 = ({
 
     const client = getTradeInstance(exchangeId);
     if (!client) return;
-    if (!tradingPair) return;
+    if (!tradingPairObj) return;
 
-    const onClose = client.getLastPrice(tradingPair, (price) => {
-      if (cancelled) return;
-      setMarketPrice(price);
-    });
+    const onClose = client.getLastPrice(
+      tradingPairObj.originalSymbol,
+      (price) => {
+        if (cancelled) return;
+        setMarketPrice(price);
+      }
+    );
 
     return () => {
       cancelled = true;
       onClose();
     };
-  }, [exchangeId, tradingPair, visibilityChange]);
+  }, [exchangeId, tradingPairObj, visibilityChange]);
 
   useEffect(() => {
     if (useMarketOrder || useMarketPrice) {
