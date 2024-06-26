@@ -6,8 +6,7 @@ import woox_logo from "../assets/images/WooX.svg";
 import gate_logo from "../assets/images/Gate.io.svg";
 
 export default {
-  proxyServer:
-    "https://trade-proxy-git-feature-express-yash-patels-projects-7afb2ed1.vercel.app/v2/proxy",
+  proxyServer: "https://trade-proxy.vercel.app/v2/proxy",
   // "http://localhost:8000/v2/proxy",
   exchanges: [
     {
