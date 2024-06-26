@@ -1,9 +1,9 @@
-import binance_logo from "../../public/assets/images/Binance.svg";
-import bybit_logo from "../../public/assets/images/Bybit.svg";
-import okx_logo from "../../public/assets/images/OKX.svg";
-import mexc_logo from "../../public/assets/images/Mexc.svg";
-import woox_logo from "../../public/assets/images/WooX.svg";
-import gate_logo from "../../public/assets/images/Gate.io.svg";
+import binance_logo from "../assets/images/Binance.svg";
+import bybit_logo from "../assets/images/Bybit.svg";
+import okx_logo from "../assets/images/OKX.svg";
+import mexc_logo from "../assets/images/Mexc.svg";
+import woox_logo from "../assets/images/WooX.svg";
+import gate_logo from "../assets/images/Gate.io.svg";
 
 export default {
   proxyServer:
