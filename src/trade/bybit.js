@@ -23,6 +23,7 @@ class Bybit extends Exchange {
     timeInForce = "GTC",
     positionIdx = side === "BUY" ? 1 : 2,
     tpslMode = "Partial",
+    addToast,
   }) {
     try {
       const orderType = {
@@ -83,21 +84,24 @@ class Bybit extends Exchange {
       const retMsg = _.get(response, "data.retMsg", "");
 
       if (retCode !== 0) {
-        return {
-          success: false,
+        addToast({
+          type: "error",
           message: retMsg,
-        };
+        });
+        return response;
       }
 
-      return {
-        success: true,
+      addToast({
+        type: "success",
         message: "Order placed successfully.",
-      };
+      });
+
+      return response;
     } catch (error) {
-      return {
-        success: false,
+      addToast({
+        type: "error",
         message: _.get(error, "message", "Failed to place order."),
-      };
+      });
     }
   }
 

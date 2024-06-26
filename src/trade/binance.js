@@ -3,6 +3,7 @@ import http from "./api";
 import _ from "lodash";
 import { store } from "../store/index.js";
 import { w3cwebsocket as WebSocket } from "websocket";
+import CryptoJS from "crypto-js";
 
 class Binance extends Exchange {
   constructor(args) {
@@ -12,79 +13,56 @@ class Binance extends Exchange {
   }
 
   async takeTrade({
+    originalSymbol,
     side,
-    size,
+    type = "MARKET",
+    price,
     stopLoss,
     takeProfit,
-    price,
-    tradingPair,
-    type = "MARKET",
-
-    selectedPair = store.getState().selectedPair,
+    quantity,
+    timeInForce = "GTC",
+    addToast,
   }) {
-    if (selectedPair.exchangeName != this.name) {
-      throw new Error("Exchange name mismatch.");
-    }
-
     const orders = {};
-    const serverTime = await this.getServerTime();
-    if (!serverTime) {
-      throw new Error("Failed to get server time from Binance.");
-    }
-
-    const timestamp = serverTime - Date.now();
-
-    const filters = _.get(selectedPair, "obj.filters", []);
-    const quantityPrecision = _.toNumber(
-      _.find(filters, {
-        filterType: "LOT_SIZE",
-      })?.stepSize
-    );
-    const pricePrecision = _.toNumber(
-      _.find(filters, {
-        filterType: "PRICE_FILTER",
-      })?.tickSize
-    );
 
     orders.order = {
-      symbol: selectedPair.pair,
+      symbol: originalSymbol,
       side,
       positionSide: side === "BUY" ? "LONG" : "SHORT",
-      type: "MARKET",
-      quantity: this.roundToSamePrecision(size, quantityPrecision),
+      type,
+      quantity: _.toNumber(quantity),
     };
 
-    if (type === "LIMIT") {
-      orders.order.type = "LIMIT";
-      orders.order.price = this.roundToSamePrecision(price, pricePrecision);
-      orders.order.timeInForce = "GTC";
+    if (orders.order.type === "LIMIT") {
+      orders.order.price = _.toNumber(price);
+      orders.order.timeInForce = timeInForce;
     }
 
     if (stopLoss) {
       orders.stopLoss = {
-        symbol: selectedPair.pair,
-        side: side === "BUY" ? "SELL" : "BUY",
-        positionSide: side === "BUY" ? "LONG" : "SHORT",
+        symbol: orders.order.symbol,
+        side: orders.order.side === "BUY" ? "SELL" : "BUY",
+        positionSide: orders.order.side === "BUY" ? "LONG" : "SHORT",
         type: "STOP_MARKET",
-        quantity: this.roundToSamePrecision(positionSize, quantityPrecision),
-        stopPrice: this.roundToSamePrecision(stopLoss, pricePrecision),
+        quantity: orders.order.quantity,
+        stopPrice: _.toNumber(stopLoss),
         closePosition: false,
         // workingType: "LAST_PRICE",
-        timeInForce: "GTC",
+        timeInForce: timeInForce,
       };
     }
 
     if (takeProfit) {
       orders.takeProfit = {
-        symbol: selectedPair.pair,
-        side: side === "BUY" ? "SELL" : "BUY",
-        positionSide: side === "BUY" ? "LONG" : "SHORT",
+        symbol: orders.order.symbol,
+        side: orders.order.side === "BUY" ? "SELL" : "BUY",
+        positionSide: orders.order.side === "BUY" ? "LONG" : "SHORT",
         type: "TAKE_PROFIT_MARKET",
-        quantity: this.roundToSamePrecision(positionSize, quantityPrecision),
-        stopPrice: this.roundToSamePrecision(takeProfit, pricePrecision),
+        quantity: orders.order.quantity,
+        stopPrice: _.toNumber(takeProfit),
         closePosition: false,
         // workingType: "LAST_PRICE",
-        timeInForce: "GTC",
+        timeInForce: timeInForce,
       };
     }
 
@@ -92,54 +70,61 @@ class Binance extends Exchange {
 
     const responses = [];
 
-    for (const key of keys) {
-      const order = {
-        ...orders[key],
-        recvWindow: 5000,
-        timestamp,
-      };
+    const timestamp = await this.getServerTime();
 
-      const signature = this.generateSignature(order);
-      const headers = {
-        "X-MBX-APIKEY": this.apiKey,
-      };
-      const url =
-        `https://fapi.binance.com/fapi/v1/order?` +
-        new URLSearchParams({
-          ...order,
-          signature,
-        }).toString();
+    try {
+      for (const key of keys) {
+        const params = {
+          ...orders[key],
+          recvWindow: 5000,
+          timestamp,
+        };
 
-      new URLSearchParams({
-        name: "value",
-        other: "value",
-      }).toString();
+        const signature = this.generateSignature(params);
+        params.signature = signature;
+        const headers = {
+          "X-MBX-APIKEY": this.apiKey,
+        };
 
-      const response = await http.request({
-        method: "POST",
-        data: {
-          url,
+        const response = await http.request({
           method: "POST",
+          url: this.BASE_URL + "/fapi/v1/order",
+          params,
           headers,
-        },
+        });
+
+        const orderName = {
+          order: "Entry Order",
+          stopLoss: "Stop Loss Order",
+          takeProfit: "Take Profit Order",
+        };
+
+        addToast({
+          type: "success",
+          message: `${orderName[key]} placed successfully.`,
+        });
+
+        responses.push(response);
+      }
+
+      return responses;
+    } catch (error) {
+      const message = _.get(error, "response.data.msg", "");
+
+      addToast({
+        type: "error",
+        message,
       });
-
-      responses.push(response);
     }
-
-    return responses;
   }
 
   async getServerTime() {
     const response = await http.request({
-      method: "POST",
-      data: {
-        url: "https://api.binance.com/api/v3/time",
-        method: "GET",
-      },
+      method: "GET",
+      url: this.BASE_URL + "/fapi/v1/time",
     });
 
-    return _.get(response, "data.body.serverTime");
+    return _.get(response, "data.serverTime");
   }
 
   async getAllTradingPairs() {

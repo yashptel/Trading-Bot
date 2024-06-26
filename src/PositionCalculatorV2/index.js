@@ -178,27 +178,9 @@ const PositionCalculatorV2 = ({
         return;
       }
 
-      const { success, message } = await client.takeTrade(args);
-
-      const modalId = nanoid();
-
-      const removeModal = () => {
-        setTimeout(() => {
-          removeDynamicElement(modalId);
-        }, 300);
-      };
-
-      addDynamicElement({
-        id: modalId,
-        type: "toast",
-        component: (
-          <CustomAlert
-            onClose={removeModal}
-            type={success ? "success" : "error"}
-          >
-            {message}
-          </CustomAlert>
-        ),
+      await client.takeTrade({
+        ...args,
+        addToast,
       });
     },
 
