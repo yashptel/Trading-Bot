@@ -289,7 +289,7 @@ const PositionCalculatorV2 = ({
   }, [price, stopLoss, takeProfit, riskRewardRatio, activeTab]);
 
   return (
-    <section className=" dark:bg-gray-900 mt-auto mx-2">
+    <section className=" dark:bg-gray-900 mt-auto mx-4">
       <Card className="w-full max-w-[26rem] shadow-lg mx-auto relative">
         <div
           className={`flex justify-center items-center rounded-xl absolute top-0 right-0 left-0 bottom-0 z-50 backdrop-blur-sm transition-all duration-300 ${

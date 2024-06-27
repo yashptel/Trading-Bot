@@ -1,1 +1,1 @@
-export const COMPANY_NAME = '';
+export const COMPANY_NAME = "Squiwo";

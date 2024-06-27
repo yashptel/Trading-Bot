@@ -28,12 +28,12 @@ const App = ({ dynamicElements, incrementVisibilityChange }) => {
   return (
     <div className="min-h-full flex flex-col">
       <Helmet
-        title={`Software Development Agency, Product Enginnering & Solutions Company | ${COMPANY_NAME}`}
+        title={`Trading Bot | ${COMPANY_NAME}`}
         meta={[
           {
             name: "description",
             content:
-              "Software Development Agency, Product Enginnering & Solutions Company. We are a team of developers who love to create beautiful and functional websites.",
+              "Trading Bot is a platform that allows you to automate your trading strategies on multiple exchanges.",
           },
           { name: "keywords", content: "home, page" },
         ]}
