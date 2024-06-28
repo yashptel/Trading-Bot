@@ -38,6 +38,7 @@ export default {
       value: "mexc",
       url: "https://www.mexc.com/",
       logo: mexc_logo,
+      isEnabled: true,
     },
     {
       id: "2zpbkrNf42r8jCZ9iFa8R",
