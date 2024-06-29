@@ -266,7 +266,7 @@ export function Settings({
                                 color="blue-gray"
                                 className="!font-normal text-gray-600 text-left overflow-hidden text-ellipsis text-nowrap"
                               >
-                                {apiKey}
+                                {apiKey || "N/A"}
                               </Typography>
                             </td>
                             <td className={classes}>
@@ -274,7 +274,7 @@ export function Settings({
                                 variant="small"
                                 className="!font-normal text-gray-600 text-left overflow-hidden text-ellipsis text-nowrap"
                               >
-                                {secretKey}
+                                {secretKey || "N/A"}
                               </Typography>
                             </td>
                             <td className={classes}>
@@ -282,7 +282,7 @@ export function Settings({
                                 variant="small"
                                 className="!font-normal text-gray-600 text-left overflow-hidden text-ellipsis text-nowrap"
                               >
-                                {passphrase}
+                                {passphrase || "N/A"}
                               </Typography>
                             </td>
 

@@ -38,7 +38,7 @@ const CustomSelect = ({
               <img
                 src={selection[logoKey]}
                 alt={selection[nameKey]}
-                className="h-5 w-5 rounded-full object-cover"
+                className="h-5 w-5 rounded object-cover"
               />
             )}
             {selection[nameKey]}
