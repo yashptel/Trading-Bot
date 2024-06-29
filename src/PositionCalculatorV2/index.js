@@ -535,6 +535,10 @@ const PositionCalculatorV2 = ({
                     variant="outlined"
                     value={`$${i}`}
                     size="sm"
+                    key={i}
+                    onClick={(e) => {
+                      inputHandlerNumber(i, setLossPerTrade);
+                    }}
                     className="h-5 py-0 font-normal text-[0.8rem] border-gray-400 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 ease-in-out cursor-pointer active:bg-gray-200 dark:checked:bg-gray-700"
                   />
                 );

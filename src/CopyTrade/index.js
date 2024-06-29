@@ -1245,7 +1245,7 @@ const CopyTrade = () => {
                   </button>
                 </div>
                 {_.includes(["Bybit", "Binance", "OKX"], exchange) && (
-                  <div class="flex items-center">
+                  <div className="flex items-center">
                     <input
                       id="default-checkbox"
                       type="checkbox"
@@ -1255,11 +1255,11 @@ const CopyTrade = () => {
                         setUseMarketOrder(e.target.checked);
                         setMannualPrice(false);
                       }}
-                      class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     ></input>
                     <label
                       for="default-checkbox"
-                      class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
+                      className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300"
                     >
                       Use Market Order on Last Price
                     </label>
@@ -1286,7 +1286,7 @@ const CopyTrade = () => {
                       handleInputChangeOnlyNumbers(e, setStopLoss)
                     }
                   ></input>
-                  <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                  <p className="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
                     ≈ {_.round(approxLoss, 2) || 0}{" "}
                     {selectedTradingPair.quoteAsset}
                   </p>
@@ -1311,7 +1311,7 @@ const CopyTrade = () => {
                           handleInputChangeOnlyNumbers(e, setTakeProfit)
                         }
                       ></input>
-                      <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                      <p className="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
                         ≈ {_.round(approxProfit, 2) || 0}{" "}
                         {selectedTradingPair.quoteAsset}
                         {approxProfit > 0 && (
@@ -1342,7 +1342,7 @@ const CopyTrade = () => {
                           handleInputChangeOnlyNumbers(e, setRiskRewardRatio)
                         }
                       ></input>
-                      <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                      <p className="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
                         ≈ {_.round(approxProfit, 2) || 0}{" "}
                         {
                           <span className="text-green-500">
@@ -1473,7 +1473,7 @@ const CopyTrade = () => {
                   </button>
                 </div>
 
-                <p class="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
+                <p className="tracking-tighter text-gray-500 md:text-xs dark:text-gray-400">
                   ≈ {_.round(positionSize * lastPrice, 2) || 0}{" "}
                   {selectedTradingPair.quoteAsset}
                 </p>
