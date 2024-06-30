@@ -19,6 +19,7 @@ const initialState = {
     lossPerTrade: 0,
   },
   apiCredentials: [],
+  lossPerTradeInputs: [],
   temporaryState: {
     visibilityChange: 0,
     isLoading: 0,
@@ -156,6 +157,43 @@ const stateReducer = (state = initialState, action) => {
           ...state.temporaryState,
           visibilityChange: state.temporaryState.visibilityChange + 1,
         },
+      };
+
+    case "ADD_LOSS_PER_TRADE_INPUT":
+      const existingInput = _.findIndex(state.lossPerTradeInputs, {
+        value: action.payload,
+      });
+
+      if (existingInput === -1) {
+        return {
+          ...state,
+          lossPerTradeInputs: [
+            ...(state.lossPerTradeInputs.length > 200
+              ? state.lossPerTradeInputs.slice(0, 120)
+              : state.lossPerTradeInputs),
+            {
+              lastUpdated: Date.now(),
+              count: 1,
+              value: action.payload,
+              id: nanoid(),
+            },
+          ].sort((a, b) => b.count - a.count),
+        };
+      }
+
+      return {
+        ...state,
+        lossPerTradeInputs: state.lossPerTradeInputs
+          .map((item, i) =>
+            i === existingInput
+              ? {
+                  ...item,
+                  lastUpdated: Date.now(),
+                  count: item.count + 1,
+                }
+              : item
+          )
+          .sort((a, b) => b.count - a.count),
       };
 
     default:

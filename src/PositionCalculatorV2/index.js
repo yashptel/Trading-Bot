@@ -56,6 +56,9 @@ const PositionCalculatorV2 = ({
 
   apiCredentials,
   visibilityChange,
+
+  lossPerTradeSuggestions,
+  addLossPerTradeInput,
 }) => {
   const [useMarketOrder, setUseMarketOrder] = React.useState(true);
   const [useMarketPrice, setUseMarketPrice] = React.useState(true);
@@ -524,25 +527,41 @@ const PositionCalculatorV2 = ({
               onChange={(e) => {
                 inputHandlerNumber(e.target.value, setLossPerTrade);
               }}
+              onBlur={(e) => {
+                if (lossPerTrade > 0) addLossPerTradeInput(lossPerTrade);
+              }}
               autocomplete="false"
               data-lpignore="true"
               data-form-type="other"
             />
             <div className="flex gap-2 mt-2">
-              {[1, 3, 5, 6, 8, 9].map((i) => {
-                return (
-                  <Chip
-                    variant="outlined"
-                    value={`$${i}`}
-                    size="sm"
-                    key={i}
-                    onClick={(e) => {
-                      inputHandlerNumber(i, setLossPerTrade);
-                    }}
-                    className="h-5 py-0 font-normal text-[0.8rem] border-gray-400 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 ease-in-out cursor-pointer active:bg-gray-200 dark:checked:bg-gray-700"
-                  />
-                );
-              })}
+              {_.uniqBy(
+                [
+                  ..._.slice(lossPerTradeSuggestions, 0, 4),
+                  ..._.slice(
+                    _.sortBy(lossPerTradeSuggestions, "updatedAt").reverse(),
+                    0,
+                    4
+                  ),
+                ],
+                "id"
+              )
+                .sort((a, b) => a.value - b.value)
+                .map(({ value, id }) => {
+                  return (
+                    <Chip
+                      variant="outlined"
+                      value={`$${value}`}
+                      size="sm"
+                      key={id}
+                      onClick={(e) => {
+                        inputHandlerNumber(value, setLossPerTrade);
+                        if (value > 0) addLossPerTradeInput(value);
+                      }}
+                      className="h-5 py-0 font-normal text-[0.8rem] border-gray-400 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 ease-in-out cursor-pointer active:bg-gray-200 dark:checked:bg-gray-700"
+                    />
+                  );
+                })}
             </div>
           </div>
 
@@ -633,6 +652,7 @@ const mapStateToProps = (state) => {
     tradingPair: state.currentSettings.tradingPair,
     visibilityChange: state.temporaryState.visibilityChange,
     apiCredentials: state.apiCredentials,
+    lossPerTradeSuggestions: state.lossPerTradeInputs,
   };
 };
 
@@ -663,6 +683,10 @@ const mapDispatchToProps = (dispatch) => {
 
     removeDynamicElement: (payload) => {
       dispatch({ type: "REMOVE_DYNAMIC_ELEMENT", payload });
+    },
+
+    addLossPerTradeInput: (payload) => {
+      dispatch({ type: "ADD_LOSS_PER_TRADE_INPUT", payload });
     },
   };
 };
