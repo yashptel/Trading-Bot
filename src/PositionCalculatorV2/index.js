@@ -293,7 +293,7 @@ const PositionCalculatorV2 = ({
 
   return (
     <section className=" dark:bg-gray-900 mt-auto mx-4">
-      <Card className="w-full max-w-[26rem] shadow-lg mx-auto relative">
+      <Card className="w-full max-w-[25rem] shadow-lg mx-auto relative">
         <div
           className={`flex justify-center items-center rounded-xl absolute top-0 right-0 left-0 bottom-0 z-50 backdrop-blur-sm transition-all duration-300 ${
             isLoading ? "opacity-100 visible`" : "opacity-0 invisible"
@@ -546,6 +546,7 @@ const PositionCalculatorV2 = ({
                 ],
                 "id"
               )
+                .slice(0, 6)
                 .sort((a, b) => a.value - b.value)
                 .map(({ value, id }) => {
                   return (
