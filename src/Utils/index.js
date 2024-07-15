@@ -147,3 +147,7 @@ export const calcTakeProfit = (entry, stopLoss, risk) => {
   }
   return entry + reward;
 };
+
+export const calcLoss = (entry, stopLoss, positionSize) => {
+  return Math.abs(entry - stopLoss) * positionSize;
+};

@@ -36,6 +36,7 @@ import getTradeInstance from "../trade";
 import Settings from "../components/Settings";
 import { nanoid } from "@reduxjs/toolkit";
 import {
+  calcLoss,
   calcPositionSize,
   calcRiskReward,
   calcTakeProfit,
@@ -84,6 +85,37 @@ const PositionCalculatorV2 = ({
   const [tradingPairs, setTradingPairs] = React.useState([]);
 
   const [tradingPairObj, setTradingPairObj] = React.useState();
+
+  const [actualLoss, setActualLoss] = React.useState(0);
+  const [actualProfit, setActualProfit] = React.useState(0);
+
+  useEffect(() => {
+    const loss = calcLoss(
+      _.toNumber(price),
+      _.toNumber(stopLoss),
+      _.toNumber(positionSize)
+    );
+
+    const quantityStep = _.get(tradingPairObj, "quantityStep", 0.0001);
+    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+
+    const isInvalid =
+      (_.toNumber(price) < _.toNumber(stopLoss) &&
+        _.toNumber(price) < _.toNumber(takeProfit)) ||
+      (_.toNumber(price) > _.toNumber(stopLoss) &&
+        _.toNumber(price) > _.toNumber(takeProfit));
+
+    roundToSamePrecisionWithCallback(
+      isInvalid ? loss : -loss,
+      tickSize,
+      setActualLoss
+    );
+    roundToSamePrecisionWithCallback(
+      loss * _.toNumber(riskRewardRatio),
+      tickSize,
+      setActualProfit
+    );
+  }, [positionSize, price, stopLoss, riskRewardRatio]);
 
   const data = [
     {
@@ -514,7 +546,7 @@ const PositionCalculatorV2 = ({
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <Input
               type="tel"
               size="lg"
@@ -529,6 +561,13 @@ const PositionCalculatorV2 = ({
               autocomplete="false"
               data-lpignore="true"
               data-form-type="other"
+            />
+
+            <Chip
+              value={`≈ ${actualLoss}/${actualProfit}`}
+              variant="ghost"
+              size="sm"
+              className="!absolute right-2 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
             />
             <div className="flex gap-2 mt-2">
               {_.uniqBy(
