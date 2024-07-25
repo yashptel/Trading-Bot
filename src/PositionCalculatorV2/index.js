@@ -270,6 +270,7 @@ const PositionCalculatorV2 = ({
     const client = getTradeInstance(exchangeId);
     if (!client) return;
     if (!tradingPairObj) return;
+    if (!useMarketPrice) return;
 
     const onClose = client.getLastPrice(
       tradingPairObj.originalSymbol,
@@ -283,7 +284,7 @@ const PositionCalculatorV2 = ({
       cancelled = true;
       onClose();
     };
-  }, [exchangeId, tradingPairObj, visibilityChange]);
+  }, [exchangeId, tradingPairObj, visibilityChange, useMarketPrice]);
 
   useEffect(() => {
     if (useMarketOrder || useMarketPrice) {
