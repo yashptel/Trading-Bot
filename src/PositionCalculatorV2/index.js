@@ -524,6 +524,13 @@ const PositionCalculatorV2 = ({
                       value={`≈ $${takeProfit}`}
                       variant="ghost"
                       size="sm"
+                      onClick={(e) => {
+                        copyToClipboard(takeProfit);
+                        addToast({
+                          type: "success",
+                          message: "Copied to clipboard",
+                        });
+                      }}
                       className="!absolute right-2 top-[0.63rem] font-light text-gray-700 rounded flex items-center"
                     />
                   </TabPanel>
@@ -554,7 +561,10 @@ const PositionCalculatorV2 = ({
               label="Loss Per Trade"
               value={lossPerTrade}
               onChange={(e) => {
-                inputHandlerNumber(e.target.value, setLossPerTrade);
+                const callbackFn = (val) => {
+                  roundToSamePrecisionWithCallback(val, 0.01, setLossPerTrade);
+                };
+                inputHandlerNumber(e.target.value, callbackFn);
               }}
               onBlur={(e) => {
                 if (lossPerTrade > 0) addLossPerTradeInput(lossPerTrade);
