@@ -45,6 +45,7 @@ import {
 } from "../Utils";
 import _ from "lodash";
 import CustomAlert from "../components/CustomAlert";
+import { useSearchParams } from "react-router-dom";
 
 const PositionCalculatorV2 = ({
   isLoading,
@@ -88,6 +89,11 @@ const PositionCalculatorV2 = ({
 
   const [actualLoss, setActualLoss] = React.useState(0);
   const [actualProfit, setActualProfit] = React.useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    setSearchParams({ exchangeId, tradingPair });
+  }, [exchangeId, tradingPair]);
 
   useEffect(() => {
     const loss = calcLoss(
@@ -342,7 +348,7 @@ const PositionCalculatorV2 = ({
         <CardBody className="space-y-4 md:space-y-6">
           <div className="flex items-center justify-between gap-2 mb-8 md:mb-10">
             <CustomSelect
-              defaultValue={exchangeId}
+              defaultValue={searchParams.get("exchangeId") || exchangeId}
               onChange={(val) => setExchangeId(val)}
               showSearch={false}
               key="exchange-select"
@@ -354,7 +360,7 @@ const PositionCalculatorV2 = ({
 
             <CustomSelect
               showSearch={true}
-              defaultValue={tradingPair}
+              defaultValue={searchParams.get("tradingPair") || tradingPair}
               onChange={(val) => setTradingPair(val)}
               key="pair-select"
               label="Select Pair"
