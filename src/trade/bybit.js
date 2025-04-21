@@ -56,7 +56,13 @@ class Bybit extends Exchange {
       }
 
       if (takeProfit) {
-        order.takeProfit = _.toString(takeProfit);
+        order.takeProfit = _.toString(
+          side === "BUY" ? takeProfit * (1 - 0.01) : takeProfit * (1 + 0.01)
+        );
+        // tpOrderType
+        order.tpOrderType = "Limit";
+        // tpLimitPrice
+        order.tpLimitPrice = _.toString(takeProfit);
       }
 
       const timestamp = await this.getServerTime();
