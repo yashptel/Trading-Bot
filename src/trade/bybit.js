@@ -57,7 +57,7 @@ class Bybit extends Exchange {
 
       if (takeProfit) {
         order.takeProfit = _.toString(
-          side === "BUY" ? takeProfit * (1 - 0.01) : takeProfit * (1 + 0.01)
+          side === "BUY" ? takeProfit * (1 - 0.001) : takeProfit * (1 + 0.001)
         );
         // tpOrderType
         order.tpOrderType = "Limit";
