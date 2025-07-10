@@ -49,6 +49,7 @@ class Binance extends Exchange {
         stopPrice: _.toNumber(stopLoss),
         closePosition: false,
         // workingType: "LAST_PRICE",
+        workingType: "MARK_PRICE",
         timeInForce: timeInForce,
       };
     }
