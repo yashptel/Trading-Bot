@@ -53,6 +53,7 @@ class Bybit extends Exchange {
 
       if (stopLoss) {
         order.stopLoss = _.toString(stopLoss);
+        order.slTriggerBy = "MarkPrice";
       }
 
       if (takeProfit) {
@@ -63,6 +64,7 @@ class Bybit extends Exchange {
         order.tpOrderType = "Limit";
         // tpLimitPrice
         order.tpLimitPrice = _.toString(takeProfit);
+        order.tpTriggerBy = "LastPrice";
       }
 
       const timestamp = await this.getServerTime();
