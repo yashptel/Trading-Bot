@@ -57,13 +57,17 @@ class Binance extends Exchange {
         symbol: orders.order.symbol,
         side: orders.order.side === "BUY" ? "SELL" : "BUY",
         positionSide: orders.order.side === "BUY" ? "LONG" : "SHORT",
-        type: "TAKE_PROFIT_MARKET",
-        // type: "TAKE_PROFIT",
+        // type: "TAKE_PROFIT_MARKET",
+        type: "TAKE_PROFIT",
         quantity: orders.order.quantity,
-        stopPrice: _.toNumber(takeProfit),
-        // price: _.toNumber(takeProfit),
+        stopPrice: _.toNumber(
+          orders.order.side === "BUY"
+            ? takeProfit * (1 - 0.001)
+            : takeProfit * (1 + 0.001)
+        ),
+        price: _.toNumber(takeProfit),
         closePosition: false,
-        // workingType: "LAST_PRICE",
+        workingType: "LAST_PRICE",
         timeInForce: timeInForce,
       };
     }
