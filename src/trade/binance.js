@@ -19,6 +19,7 @@ class Binance extends Exchange {
     price,
     stopLoss,
     takeProfit,
+    takeProfitTrigger,
     quantity,
     timeInForce = "GTC",
     addToast,
@@ -60,11 +61,7 @@ class Binance extends Exchange {
         // type: "TAKE_PROFIT_MARKET",
         type: "TAKE_PROFIT",
         quantity: orders.order.quantity,
-        stopPrice: _.toNumber(
-          orders.order.side === "BUY"
-            ? takeProfit * (1 - 0.001)
-            : takeProfit * (1 + 0.001)
-        ),
+        stopPrice: _.toNumber(takeProfitTrigger || takeProfit),
         price: _.toNumber(takeProfit),
         closePosition: false,
         workingType: "LAST_PRICE",

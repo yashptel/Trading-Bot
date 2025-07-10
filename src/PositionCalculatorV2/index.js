@@ -335,6 +335,19 @@ const PositionCalculatorV2 = ({
     }
   }, [price, stopLoss, takeProfit, riskRewardRatio, activeTab]);
 
+  const roundToSamePrecision = React.useCallback(
+    (value) => {
+      const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+
+      roundToSamePrecisionWithCallback(value, tickSize, (roundedValue) => {
+        value = roundedValue;
+      });
+
+      return value;
+    },
+    [tradingPairObj]
+  );
+
   return (
     <section className=" dark:bg-gray-900 mt-auto mx-4">
       <Card className="w-full max-w-[25rem] shadow-lg mx-auto relative">
@@ -667,6 +680,9 @@ const PositionCalculatorV2 = ({
                   price,
                   stopLoss,
                   takeProfit,
+                  takeProfitTrigger: roundToSamePrecision(
+                    takeProfit * (1 - 0.001)
+                  ),
                   quantity: positionSize,
                   type: useMarketOrder ? "MARKET" : "LIMIT",
                 });
@@ -686,6 +702,9 @@ const PositionCalculatorV2 = ({
                   price,
                   stopLoss,
                   takeProfit,
+                  takeProfitTrigger: roundToSamePrecision(
+                    takeProfit * (1 + 0.001)
+                  ),
                   quantity: positionSize,
                   type: useMarketOrder ? "MARKET" : "LIMIT",
                 });
