@@ -64,7 +64,7 @@ class Binance extends Exchange {
         stopPrice: _.toNumber(takeProfitTrigger || takeProfit),
         price: _.toNumber(takeProfit),
         closePosition: false,
-        workingType: "LAST_PRICE",
+        // workingType: "LAST_PRICE",
         timeInForce: timeInForce,
       };
     }
