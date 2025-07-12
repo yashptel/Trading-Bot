@@ -41,6 +41,7 @@ import {
   calcRiskReward,
   calcTakeProfit,
   inputHandlerNumber,
+  roundToSamePrecision,
   roundToSamePrecisionWithCallback,
 } from "../Utils";
 import _ from "lodash";
@@ -335,18 +336,10 @@ const PositionCalculatorV2 = ({
     }
   }, [price, stopLoss, takeProfit, riskRewardRatio, activeTab]);
 
-  const roundToSamePrecision = React.useCallback(
-    (value) => {
-      const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
-
-      roundToSamePrecisionWithCallback(value, tickSize, (roundedValue) => {
-        value = roundedValue;
-      });
-
-      return value;
-    },
-    [tradingPairObj]
-  );
+  const roundTakeProfit = (value) => {
+    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+    return roundToSamePrecision(value, tickSize);
+  };
 
   return (
     <section className=" dark:bg-gray-900 mt-auto mx-4">
@@ -680,9 +673,7 @@ const PositionCalculatorV2 = ({
                   price,
                   stopLoss,
                   takeProfit,
-                  takeProfitTrigger: roundToSamePrecision(
-                    takeProfit * (1 - 0.001)
-                  ),
+                  takeProfitTrigger: roundTakeProfit(takeProfit * (1 - 0.001)),
                   quantity: positionSize,
                   type: useMarketOrder ? "MARKET" : "LIMIT",
                 });
@@ -702,9 +693,7 @@ const PositionCalculatorV2 = ({
                   price,
                   stopLoss,
                   takeProfit,
-                  takeProfitTrigger: roundToSamePrecision(
-                    takeProfit * (1 + 0.001)
-                  ),
+                  takeProfitTrigger: roundTakeProfit(takeProfit * (1 + 0.001)),
                   quantity: positionSize,
                   type: useMarketOrder ? "MARKET" : "LIMIT",
                 });
