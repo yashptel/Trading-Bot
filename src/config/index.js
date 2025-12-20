@@ -4,6 +4,7 @@ import okx_logo from "../assets/images/OKX.svg";
 import mexc_logo from "../assets/images/Mexc.svg";
 import woox_logo from "../assets/images/WooX.svg";
 import gate_logo from "../assets/images/Gate.io.svg";
+import aster_logo from "../assets/images/Aster.svg";
 
 export default {
   proxyServer: "https://trade-proxy.vercel.app/v2/proxy",
@@ -38,6 +39,14 @@ export default {
       value: "mexc",
       url: "https://www.mexc.com/",
       logo: mexc_logo,
+      isEnabled: true,
+    },
+    {
+      id: "asterdex",
+      name: "Aster DEX",
+      value: "asterdex",
+      url: "https://www.asterdex.com/",
+      logo: aster_logo,
       isEnabled: true,
     },
     {

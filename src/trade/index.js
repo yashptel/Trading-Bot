@@ -1,12 +1,13 @@
 import Binance from "./binance";
 import Bybit from "./bybit";
 import Mexc from "./mexc";
+import AsterDex from "./asterdex";
 
 /**
  *
  * @param {String} exchangeId
  * @param {*} args
- * @returns {Bybit|Binance|Mexc}
+ * @returns {Bybit|Binance|Mexc|AsterDex}
  */
 const getTradeInstance = (exchangeId, args = {}) => {
   switch (exchangeId) {
@@ -16,6 +17,8 @@ const getTradeInstance = (exchangeId, args = {}) => {
       return new Bybit(args);
     case "lSd7NssEYffk-Ah8-e0wJ":
       return new Mexc(args);
+    case "asterdex":
+      return new AsterDex(args);
     default:
       // throw new Error("Exchange not supported.");
       console.error("Exchange not supported.");
