@@ -31,7 +31,7 @@ class AsterDex extends Exchange {
     orders.order = {
       symbol: originalSymbol,
       side,
-      positionSide: "BOTH", // Default to BOTH for One-way Mode
+      positionSide: side === "BUY" ? "LONG" : "SHORT", // Hedge Mode: LONG for BUY, SHORT for SELL
       type,
       quantity: _.toNumber(quantity),
     };
@@ -45,11 +45,10 @@ class AsterDex extends Exchange {
       orders.stopLoss = {
         symbol: orders.order.symbol,
         side: orders.order.side === "BUY" ? "SELL" : "BUY",
-        positionSide: "BOTH",
+        positionSide: orders.order.positionSide, // Same position side as entry order
         type: "STOP_MARKET",
         quantity: orders.order.quantity,
         stopPrice: _.toNumber(stopLoss),
-        closePosition: false,
         workingType: "MARK_PRICE",
         timeInForce: timeInForce,
       };
@@ -59,12 +58,11 @@ class AsterDex extends Exchange {
       orders.takeProfit = {
         symbol: orders.order.symbol,
         side: orders.order.side === "BUY" ? "SELL" : "BUY",
-        positionSide: "BOTH",
+        positionSide: orders.order.positionSide, // Same position side as entry order
         type: "TAKE_PROFIT",
         quantity: orders.order.quantity,
         stopPrice: _.toNumber(takeProfitTrigger || takeProfit),
         price: _.toNumber(takeProfit),
-        closePosition: false,
         timeInForce: timeInForce,
       };
     }
