@@ -103,8 +103,7 @@ const PositionCalculatorV2 = ({
       _.toNumber(positionSize)
     );
 
-    const quantityStep = _.get(tradingPairObj, "quantityStep", 0.0001);
-    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+    const tickSize = _.get(tradingPairObj, "tickSize", "0.0001");
 
     const isInvalid =
       (_.toNumber(price) < _.toNumber(stopLoss) &&
@@ -337,7 +336,7 @@ const PositionCalculatorV2 = ({
   }, [price, stopLoss, takeProfit, riskRewardRatio, activeTab]);
 
   const roundTakeProfit = (value) => {
-    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+    const tickSize = _.get(tradingPairObj, "tickSize", "0.0001");
     return roundToSamePrecision(value, tickSize);
   };
 

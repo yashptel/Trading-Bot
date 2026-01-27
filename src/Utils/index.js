@@ -83,6 +83,7 @@ export const calcPositionSize = (price, risk, stopLoss) => {
  * @returns {string} - The rounded number.
  */
 export const roundToSamePrecision = (number, sample) => {
+  sample = _.toString(sample).replace(/\.?0+$/, "");
   Number.prototype.noExponents = function () {
     var data = String(this).split(/[eE]/);
     if (data.length == 1) return data[0];
