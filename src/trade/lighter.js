@@ -52,8 +52,7 @@ class Lighter extends Exchange {
   async _initWasm() {
     await waitForWasm();
     if (!this._clientInitialised) {
-      createClient(
-        this.BASE_URL,
+      await createClient(
         this.privateKey,
         this.CHAIN_ID,
         this.apiKeyIndex,
@@ -226,6 +225,9 @@ class Lighter extends Exchange {
         ReduceOnly: 0,
         TriggerPrice: 0,
         OrderExpiry: expiry,
+        IntegratorAccountIndex: 0,
+        IntegratorTakerFee: 0,
+        IntegratorMakerFee: 0,
       });
 
       // Take Profit order
@@ -242,6 +244,9 @@ class Lighter extends Exchange {
           ReduceOnly: 1,
           TriggerPrice: this._toInt(tpTrigger, priceDecimals),
           OrderExpiry: expiry,
+          IntegratorAccountIndex: 0,
+          IntegratorTakerFee: 0,
+          IntegratorMakerFee: 0,
         });
       }
 
@@ -258,20 +263,34 @@ class Lighter extends Exchange {
           ReduceOnly: 1,
           TriggerPrice: this._toInt(stopLoss, priceDecimals),
           OrderExpiry: expiry,
+          IntegratorAccountIndex: 0,
+          IntegratorTakerFee: 0,
+          IntegratorMakerFee: 0,
         });
       }
 
-      // 4. Sign the grouped order (nonce=-1 = auto-managed by client)
+      // 4. Fetch the next nonce manually via JS to avoid WASM networking issues
+      const nonceResponse = await http.request({
+        method: "GET",
+        url: `${this.BASE_URL}/api/v1/nextNonce?account_index=${this.accountIndex}&api_key_index=${this.apiKeyIndex}`,
+      });
+      const nonce = parseInt(nonceResponse.data.nonce);
+
+      if (isNaN(nonce)) {
+        throw new Error("Failed to fetch next nonce from Lighter API.");
+      }
+
+      // 5. Sign the grouped order using the explicit nonce
       const signed = signCreateGroupedOrders(
         GROUPING_TYPE_ENTRY_TP_SL,
         orders,
-        -1,
+        nonce,
         this.apiKeyIndex,
         this.accountIndex
       );
 
-      if (!signed || !signed.tx_info) {
-        throw new Error("Signing failed: no tx_info returned");
+      if (!signed || !signed.txInfo) {
+        throw new Error("Signing failed: no txInfo returned");
       }
 
       // 5. Generate auth token (valid 7h by default)
@@ -279,8 +298,8 @@ class Lighter extends Exchange {
 
       // 6. POST via proxy
       const body = new URLSearchParams({
-        tx_type: String(signed.tx_type),
-        tx_info: signed.tx_info,
+        tx_type: String(signed.txType),
+        tx_info: signed.txInfo,
         price_protection: "false",
       }).toString();
 

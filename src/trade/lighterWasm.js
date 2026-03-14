@@ -67,13 +67,13 @@ function callWasm(fnName, ...args) {
 
 /**
  * Must be called before any signing. Idempotent — safe to call on every trade.
- * @param {string} url           - Lighter API base URL
  * @param {string} privateKey    - hex-encoded Ed25519 private key
  * @param {number} chainId       - e.g. 300 (testnet) or 1 (mainnet)
  * @param {number} apiKeyIndex   - e.g. 13
  * @param {number} accountIndex  - e.g. 72
  */
-export function createClient(url, privateKey, chainId, apiKeyIndex, accountIndex) {
+export function createClient(privateKey, chainId, apiKeyIndex, accountIndex) {
+  const url = import.meta.env.VITE_LIGHTER_REAL_URL;
   return callWasm("CreateClient", url, privateKey, chainId, apiKeyIndex, accountIndex);
 }
 
@@ -98,5 +98,15 @@ export function createAuthToken(deadline, apiKeyIndex, accountIndex) {
  * @returns {{ tx_type: number, tx_info: string }}
  */
 export function signCreateGroupedOrders(groupingType, orders, nonce, apiKeyIndex, accountIndex) {
-  return callWasm("SignCreateGroupedOrders", groupingType, orders, nonce, apiKeyIndex, accountIndex);
+  const fnName = "SignCreateGroupedOrders";
+  const fn = window[fnName];
+  if (typeof fn !== "function") {
+    throw new Error(`WASM function "${fnName}" is not available yet.`);
+  }
+  const result = fn(groupingType, orders, nonce, apiKeyIndex, accountIndex);
+  if (result && result.error) {
+    console.error(`[lighter-wasm] ${fnName} returned error:`, result.error);
+    throw new Error(`[lighter-wasm] ${fnName}: ${result.error}`);
+  }
+  return result;
 }
