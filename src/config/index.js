@@ -5,6 +5,7 @@ import mexc_logo from "../assets/images/Mexc.svg";
 import woox_logo from "../assets/images/WooX.svg";
 import gate_logo from "../assets/images/Gate.io.svg";
 import aster_logo from "../assets/images/Aster.svg";
+import lighter_logo from "../assets/images/Lighter.svg";
 
 export default {
   proxyServer: "https://trade-proxy.vercel.app/v2/proxy",
@@ -47,6 +48,14 @@ export default {
       value: "asterdex",
       url: "https://www.asterdex.com/",
       logo: aster_logo,
+      isEnabled: true,
+    },
+    {
+      id: "lighter",
+      name: "Lighter",
+      value: "lighter",
+      url: "https://app.lighter.xyz/",
+      logo: lighter_logo,
       isEnabled: true,
     },
     {

@@ -2,6 +2,7 @@ import Binance from "./binance";
 import Bybit from "./bybit";
 import Mexc from "./mexc";
 import AsterDex from "./asterdex";
+import Lighter from "./lighter";
 
 /**
  *
@@ -19,6 +20,8 @@ const getTradeInstance = (exchangeId, args = {}) => {
       return new Mexc(args);
     case "asterdex":
       return new AsterDex(args);
+    case "lighter":
+      return new Lighter(args);
     default:
       // throw new Error("Exchange not supported.");
       console.error("Exchange not supported.");
