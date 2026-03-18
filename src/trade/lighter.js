@@ -14,7 +14,7 @@ import {
 const ORDER_TYPE_LIMIT = 0;
 const ORDER_TYPE_MARKET = 1;
 const ORDER_TYPE_STOP_LOSS = 2;
-const ORDER_TYPE_TAKE_PROFIT = 4;
+const ORDER_TYPE_TAKE_PROFIT = 5; // Take Profit Limit instead of 4 (Market)
 
 // GroupingType for entry + TP + SL
 const GROUPING_TYPE_ENTRY_TP_SL = 3;
