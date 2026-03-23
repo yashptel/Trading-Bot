@@ -48,6 +48,17 @@ import _ from "lodash";
 import CustomAlert from "../components/CustomAlert";
 import { useSearchParams } from "react-router-dom";
 
+const FEE_PRECISION = 0.01;
+
+const formatFeeValue = (value) => {
+  const feeValue = _.toNumber(value);
+  if (_.isNaN(feeValue)) {
+    return "0";
+  }
+
+  return _.round(feeValue, 2).toFixed(2);
+};
+
 const PositionCalculatorV2 = ({
   isLoading,
   setIsLoading,
@@ -91,6 +102,59 @@ const PositionCalculatorV2 = ({
   const [actualLoss, setActualLoss] = React.useState(0);
   const [actualProfit, setActualProfit] = React.useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [recoverFees, setRecoverFees] = React.useState(false);
+  const [autoRecoverableFees, setAutoRecoverableFees] = React.useState(0);
+  const [autoRecoverableFeesLoading, setAutoRecoverableFeesLoading] =
+    React.useState(false);
+  const [autoRecoverableFeesError, setAutoRecoverableFeesError] =
+    React.useState("");
+  const [manualRecoverableFeesInput, setManualRecoverableFeesInput] =
+    React.useState("");
+  const isAsterDex = exchangeId === "asterdex";
+
+  const manualRecoverableFees = React.useMemo(() => {
+    if (manualRecoverableFeesInput === "") {
+      return null;
+    }
+
+    const manualValue = _.toNumber(manualRecoverableFeesInput);
+    if (_.isNaN(manualValue)) {
+      return null;
+    }
+
+    return manualValue;
+  }, [manualRecoverableFeesInput]);
+
+  const effectiveRecoverableFees =
+    manualRecoverableFees ?? _.toNumber(autoRecoverableFees);
+
+  const appliedRecoverableFees =
+    isAsterDex && recoverFees ? effectiveRecoverableFees : 0;
+
+  const effectiveLossPerTrade = React.useMemo(() => {
+    const baseLossPerTrade = _.toNumber(lossPerTrade);
+    const rewardRatio = _.toNumber(riskRewardRatio);
+    const recoverableFees = _.toNumber(appliedRecoverableFees);
+
+    if (
+      !isAsterDex ||
+      !recoverFees ||
+      _.isNaN(baseLossPerTrade) ||
+      _.isNaN(rewardRatio) ||
+      rewardRatio <= 0 ||
+      recoverableFees <= 0
+    ) {
+      return baseLossPerTrade;
+    }
+
+    return baseLossPerTrade + recoverableFees / rewardRatio;
+  }, [
+    appliedRecoverableFees,
+    isAsterDex,
+    lossPerTrade,
+    recoverFees,
+    riskRewardRatio,
+  ]);
 
   useEffect(() => {
     setSearchParams({ exchangeId, tradingPair });
@@ -235,6 +299,71 @@ const PositionCalculatorV2 = ({
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!isAsterDex) {
+      setAutoRecoverableFees(0);
+      setAutoRecoverableFeesError("");
+      setAutoRecoverableFeesLoading(false);
+      return;
+    }
+
+    const apiCredential = _.find(apiCredentials, { exchangeId });
+    if (
+      !apiCredential?.apiKey ||
+      !apiCredential?.secretKey ||
+      !tradingPairObj?.originalSymbol
+    ) {
+      setAutoRecoverableFees(0);
+      setAutoRecoverableFeesError("");
+      setAutoRecoverableFeesLoading(false);
+      return;
+    }
+
+    const client = getTradeInstance(exchangeId, {
+      apiKey: apiCredential.apiKey,
+      secret: apiCredential.secretKey,
+      passphrase: apiCredential.passphrase,
+    });
+
+    if (!client?.getRecoverableStopFees) {
+      setAutoRecoverableFees(0);
+      setAutoRecoverableFeesError("Auto fee lookup is unavailable.");
+      setAutoRecoverableFeesLoading(false);
+      return;
+    }
+
+    setAutoRecoverableFeesLoading(true);
+    setAutoRecoverableFeesError("");
+
+    client
+      .getRecoverableStopFees(tradingPairObj.originalSymbol)
+      .then((result) => {
+        if (cancelled) return;
+        setAutoRecoverableFees(_.toNumber(_.get(result, "totalFees", 0)));
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setAutoRecoverableFees(0);
+        setAutoRecoverableFeesError(
+          _.get(
+            error,
+            "response.data.msg",
+            "Failed to load recoverable fees."
+          )
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setAutoRecoverableFeesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiCredentials, exchangeId, isAsterDex, tradingPairObj?.originalSymbol]);
+
+  useEffect(() => {
+    let cancelled = false;
     if (!copied) {
       return;
     }
@@ -301,7 +430,7 @@ const PositionCalculatorV2 = ({
   useEffect(() => {
     const [positionSz, positionAmt] = calcPositionSize(
       _.toNumber(price),
-      _.toNumber(lossPerTrade),
+      _.toNumber(effectiveLossPerTrade),
       _.toNumber(stopLoss)
     );
     if (_.isNaN(positionSz)) return;
@@ -312,7 +441,7 @@ const PositionCalculatorV2 = ({
     roundToSamePrecisionWithCallback(positionSz, quantityStep, setPositionSize);
 
     roundToSamePrecisionWithCallback(positionAmt, tickSize, setPositionAmount);
-  }, [price, stopLoss, lossPerTrade, tradingPairObj]);
+  }, [effectiveLossPerTrade, price, stopLoss, tradingPairObj]);
 
   useEffect(() => {
     if (activeTab === "manual") {
@@ -621,6 +750,62 @@ const PositionCalculatorV2 = ({
                   );
                 })}
             </div>
+
+            {isAsterDex ? (
+              <div className="mt-3 space-y-2 rounded-lg border border-blue-gray-50 bg-blue-gray-50/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <Checkbox
+                    checked={recoverFees}
+                    onChange={(e) => setRecoverFees(e.target.checked)}
+                    label="Recover stop fees at TP"
+                    containerProps={{
+                      className: "-ml-2 -mr-2",
+                    }}
+                  />
+
+                  <Chip
+                    value={
+                      autoRecoverableFeesLoading
+                        ? "Auto: loading..."
+                        : `Auto: $${formatFeeValue(autoRecoverableFees)}`
+                    }
+                    variant="ghost"
+                    size="sm"
+                    className="font-light text-gray-700 rounded flex items-center"
+                  />
+                </div>
+
+                <Input
+                  type="tel"
+                  size="lg"
+                  label="Manual Fee Override"
+                  value={manualRecoverableFeesInput}
+                  onChange={(e) => {
+                    if (e.target.value === "") {
+                      setManualRecoverableFeesInput("");
+                      return;
+                    }
+
+                    const callbackFn = (val) => {
+                      setManualRecoverableFeesInput(
+                        `${roundToSamePrecision(val, FEE_PRECISION)}`
+                      );
+                    };
+
+                    inputHandlerNumber(e.target.value, callbackFn);
+                  }}
+                  autocomplete="false"
+                  data-lpignore="true"
+                  data-form-type="other"
+                />
+
+                {autoRecoverableFeesError ? (
+                  <p className="text-xs text-red-500">
+                    {autoRecoverableFeesError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="relative flex w-full">

@@ -5,6 +5,10 @@ import { store } from "../store/index.js";
 import { w3cwebsocket as WebSocket } from "websocket";
 import CryptoJS from "crypto-js";
 
+const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_LOOKBACK_WINDOWS = 12;
+const CLIENT_ORDER_ID_PREFIX = "tb";
+
 class AsterDex extends Exchange {
   constructor(args) {
     super(args);
@@ -27,6 +31,7 @@ class AsterDex extends Exchange {
     addToast,
   }) {
     const orders = {};
+    const orderGroupId = this.createOrderGroupId();
 
     orders.order = {
       symbol: originalSymbol,
@@ -34,6 +39,7 @@ class AsterDex extends Exchange {
       positionSide: side === "BUY" ? "LONG" : "SHORT", // Hedge Mode: LONG for BUY, SHORT for SELL
       type,
       quantity: _.toNumber(quantity),
+      newClientOrderId: this.buildClientOrderId("entry", orderGroupId),
     };
 
     if (orders.order.type === "LIMIT") {
@@ -51,6 +57,7 @@ class AsterDex extends Exchange {
         stopPrice: _.toNumber(stopLoss),
         workingType: "MARK_PRICE",
         timeInForce: timeInForce,
+        newClientOrderId: this.buildClientOrderId("sl", orderGroupId),
       };
     }
 
@@ -64,6 +71,7 @@ class AsterDex extends Exchange {
         stopPrice: _.toNumber(takeProfitTrigger || takeProfit),
         price: _.toNumber(takeProfit),
         timeInForce: timeInForce,
+        newClientOrderId: this.buildClientOrderId("tp", orderGroupId),
       };
     }
 
@@ -161,6 +169,264 @@ class AsterDex extends Exchange {
           ),
         };
       });
+  }
+
+  createOrderGroupId() {
+    return `${Date.now().toString(36)}${_.random(0, 1679615)
+      .toString(36)
+      .padStart(4, "0")}`;
+  }
+
+  buildClientOrderId(orderType, orderGroupId = this.createOrderGroupId()) {
+    return `${CLIENT_ORDER_ID_PREFIX}_${orderType}_${orderGroupId}`.slice(0, 36);
+  }
+
+  async signedRequest({ method = "GET", path, params = {}, timestamp }) {
+    const requestTimestamp = timestamp || (await this.getServerTime());
+    const requestParams = _.pickBy(
+      {
+        ...params,
+        recvWindow: 5000,
+        timestamp: requestTimestamp,
+      },
+      (value) => !_.isNil(value) && value !== ""
+    );
+
+    requestParams.signature = this.generateSignature(requestParams);
+
+    return http.request({
+      method,
+      url: this.BASE_URL + path,
+      params: requestParams,
+      headers: {
+        "X-MBX-APIKEY": this.apiKey,
+      },
+    });
+  }
+
+  async getUserTrades({
+    symbol,
+    startTime,
+    endTime,
+    limit = 1000,
+    timestamp,
+  }) {
+    const response = await this.signedRequest({
+      method: "GET",
+      path: "/fapi/v1/userTrades",
+      params: {
+        symbol,
+        startTime,
+        endTime,
+        limit,
+      },
+      timestamp,
+    });
+
+    return _.get(response, "data", []);
+  }
+
+  async getAllOrders({
+    symbol,
+    startTime,
+    endTime,
+    limit = 1000,
+    timestamp,
+  }) {
+    const response = await this.signedRequest({
+      method: "GET",
+      path: "/fapi/v1/allOrders",
+      params: {
+        symbol,
+        startTime,
+        endTime,
+        limit,
+      },
+      timestamp,
+    });
+
+    return _.get(response, "data", []);
+  }
+
+  getOrderCategory(order) {
+    if (!order) {
+      return "unknown";
+    }
+
+    const clientOrderId = _.toLower(_.get(order, "clientOrderId", ""));
+    if (clientOrderId.startsWith(`${CLIENT_ORDER_ID_PREFIX}_tp_`)) {
+      return "takeProfit";
+    }
+
+    if (clientOrderId.startsWith(`${CLIENT_ORDER_ID_PREFIX}_sl_`)) {
+      return "stopLoss";
+    }
+
+    const orderType = _.toUpper(_.get(order, "origType", _.get(order, "type", "")));
+    if (["TAKE_PROFIT", "TAKE_PROFIT_MARKET"].includes(orderType)) {
+      return "takeProfit";
+    }
+
+    if (["STOP", "STOP_MARKET", "TRAILING_STOP_MARKET"].includes(orderType)) {
+      return "stopLoss";
+    }
+
+    return "other";
+  }
+
+  getFeeAmount(commission) {
+    const commissionAmount = _.toNumber(commission);
+    if (_.isNaN(commissionAmount)) {
+      return 0;
+    }
+
+    return Math.abs(commissionAmount);
+  }
+
+  aggregateRecoverableStopFees({ trades = [], orders = [] }) {
+    const orderMap = new Map(
+      orders.map((order) => [String(_.get(order, "orderId")), order])
+    );
+
+    const classifiedTrades = trades
+      .map((trade) => {
+        const linkedOrder = orderMap.get(String(_.get(trade, "orderId")));
+        return {
+          ...trade,
+          category: this.getOrderCategory(linkedOrder),
+          fee: this.getFeeAmount(_.get(trade, "commission")),
+          linkedOrder,
+        };
+      })
+      .filter(({ linkedOrder }) => linkedOrder);
+
+    const takeProfitTrades = _.orderBy(
+      classifiedTrades.filter(({ category }) => category === "takeProfit"),
+      ["time", "id"],
+      ["desc", "desc"]
+    );
+
+    const lastTakeProfitTrade = takeProfitTrades[0];
+    if (!lastTakeProfitTrade) {
+      return {
+        totalFees: 0,
+        lastTakeProfitTrade: null,
+        stopLossTrades: [],
+      };
+    }
+
+    const stopLossTrades = _.orderBy(
+      classifiedTrades.filter(
+        ({ category, time }) =>
+          category === "stopLoss" &&
+          _.toNumber(time) > _.toNumber(lastTakeProfitTrade.time)
+      ),
+      ["time", "id"],
+      ["desc", "desc"]
+    );
+
+    return {
+      totalFees: _.sumBy(stopLossTrades, "fee"),
+      lastTakeProfitTrade,
+      stopLossTrades,
+    };
+  }
+
+  logRecoverableStopFees({
+    symbol,
+    totalFees,
+    lastTakeProfitTrade,
+    stopLossTrades = [],
+    lookbackWindows,
+  }) {
+    console.groupCollapsed(
+      `[AsterDex] Recoverable stop fees for ${symbol || "unknown"}`
+    );
+    console.log("Lookback windows scanned:", lookbackWindows);
+    console.log("Take profit cutoff trade:", lastTakeProfitTrade);
+    console.log("Stop loss trades used in fee sum:", stopLossTrades);
+    console.log("Recoverable stop fees total:", totalFees);
+    console.groupEnd();
+  }
+
+  async getRecoverableStopFees(
+    symbol,
+    { maxLookbackWindows = MAX_LOOKBACK_WINDOWS } = {}
+  ) {
+    if (!symbol) {
+      return {
+        symbol,
+        totalFees: 0,
+        lastTakeProfitTrade: null,
+        stopLossTrades: [],
+        lookbackWindows: 0,
+      };
+    }
+
+    let windowEnd = Date.now();
+    const tradesById = new Map();
+    const ordersById = new Map();
+
+    // Aster history endpoints are limited to 7-day ranges, so walk back until we
+    // encounter the latest take-profit fill and then stop.
+    for (
+      let windowIndex = 0;
+      windowIndex < maxLookbackWindows && windowEnd > 0;
+      windowIndex += 1
+    ) {
+      const windowStart = Math.max(0, windowEnd - HISTORY_WINDOW_MS + 1);
+      const timestamp = await this.getServerTime();
+
+      const [trades, orders] = await Promise.all([
+        this.getUserTrades({
+          symbol,
+          startTime: windowStart,
+          endTime: windowEnd,
+          timestamp,
+        }),
+        this.getAllOrders({
+          symbol,
+          startTime: windowStart,
+          endTime: windowEnd,
+          timestamp,
+        }),
+      ]);
+
+      trades.forEach((trade) => {
+        tradesById.set(String(_.get(trade, "id")), trade);
+      });
+
+      orders.forEach((order) => {
+        ordersById.set(String(_.get(order, "orderId")), order);
+      });
+
+      const aggregatedFees = this.aggregateRecoverableStopFees({
+        trades: Array.from(tradesById.values()),
+        orders: Array.from(ordersById.values()),
+      });
+
+      if (aggregatedFees.lastTakeProfitTrade) {
+        const result = {
+          symbol,
+          ...aggregatedFees,
+          lookbackWindows: windowIndex + 1,
+        };
+        this.logRecoverableStopFees(result);
+        return result;
+      }
+
+      windowEnd = windowStart - 1;
+    }
+
+    const result = {
+      symbol,
+      totalFees: 0,
+      lastTakeProfitTrade: null,
+      stopLossTrades: [],
+      lookbackWindows: maxLookbackWindows,
+    };
+    this.logRecoverableStopFees(result);
+    return result;
   }
 
   /**
