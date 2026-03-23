@@ -9,6 +9,8 @@ const HISTORY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_LOOKBACK_WINDOWS = 12;
 const CLIENT_ORDER_ID_PREFIX = "tb";
 
+const SERVER_TIME_CACHE_MS = 60_000;
+
 class AsterDex extends Exchange {
   constructor(args) {
     super(args);
@@ -16,6 +18,8 @@ class AsterDex extends Exchange {
     this.SOCKET_ADDRESS = import.meta.env.VITE_ASTERDEX_SOCKET_ADDRESS;
     this.apiKey = args.apiKey;
     this.secret = args.secret;
+    this._serverTimeOffset = null;
+    this._serverTimeSyncedAt = 0;
   }
 
   async takeTrade({
@@ -131,12 +135,25 @@ class AsterDex extends Exchange {
   }
 
   async getServerTime() {
+    const now = Date.now();
+
+    if (
+      this._serverTimeOffset !== null &&
+      now - this._serverTimeSyncedAt < SERVER_TIME_CACHE_MS
+    ) {
+      return now + this._serverTimeOffset;
+    }
+
     const response = await http.request({
       method: "GET",
       url: this.BASE_URL + "/fapi/v1/time",
     });
 
-    return _.get(response, "data.serverTime");
+    const serverTime = _.get(response, "data.serverTime");
+    this._serverTimeOffset = serverTime - Date.now();
+    this._serverTimeSyncedAt = Date.now();
+
+    return serverTime;
   }
 
   async getAllTradingPairs() {
@@ -367,28 +384,26 @@ class AsterDex extends Exchange {
     const tradesById = new Map();
     const ordersById = new Map();
 
-    // Aster history endpoints are limited to 7-day ranges, so walk back until we
-    // encounter the latest take-profit fill and then stop.
+    // Prime the server-time cache so loop iterations don't hit the network.
+    await this.getServerTime();
+
     for (
       let windowIndex = 0;
       windowIndex < maxLookbackWindows && windowEnd > 0;
       windowIndex += 1
     ) {
       const windowStart = Math.max(0, windowEnd - HISTORY_WINDOW_MS + 1);
-      const timestamp = await this.getServerTime();
 
       const [trades, orders] = await Promise.all([
         this.getUserTrades({
           symbol,
           startTime: windowStart,
           endTime: windowEnd,
-          timestamp,
         }),
         this.getAllOrders({
           symbol,
           startTime: windowStart,
           endTime: windowEnd,
-          timestamp,
         }),
       ]);
 
