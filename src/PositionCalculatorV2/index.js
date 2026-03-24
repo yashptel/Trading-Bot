@@ -27,9 +27,13 @@ import {
 import CustomSelect from "../components/CustomSelect";
 import {
   ArrowDownCircleIcon,
+  ArrowPathIcon,
+  ChevronDownIcon,
   CheckIcon,
   Cog6ToothIcon,
   DocumentDuplicateIcon,
+  PlusIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 import getTradeInstance from "../trade";
@@ -108,22 +112,42 @@ const PositionCalculatorV2 = ({
     React.useState(false);
   const [autoRecoverableFeesError, setAutoRecoverableFeesError] =
     React.useState("");
-  const [manualRecoverableFeesInput, setManualRecoverableFeesInput] =
-    React.useState("");
+  const [manualFeeEntries, setManualFeeEntries] = React.useState([]);
+  const [fetchedFeeEntries, setFetchedFeeEntries] = React.useState([]);
+  const [newFeeInput, setNewFeeInput] = React.useState("");
+  const [feeListOpen, setFeeListOpen] = React.useState(true);
   const isAsterDex = exchangeId === "asterdex";
 
+  const resetFeeEntries = React.useCallback(() => {
+    setManualFeeEntries(fetchedFeeEntries.map((e) => ({ ...e, id: nanoid() })));
+  }, [fetchedFeeEntries]);
+
+  const addFeeEntry = React.useCallback(() => {
+    const value = _.toNumber(newFeeInput);
+    if (_.isNaN(value) || newFeeInput === "") return;
+    setManualFeeEntries((prev) => [...prev, { id: nanoid(), value }]);
+    setNewFeeInput("");
+  }, [newFeeInput]);
+
+  const removeFeeEntry = React.useCallback((id) => {
+    setManualFeeEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const updateFeeEntry = React.useCallback((id, raw) => {
+    setManualFeeEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, value: raw } : e))
+    );
+  }, []);
+
   const manualRecoverableFees = React.useMemo(() => {
-    if (manualRecoverableFeesInput === "") {
-      return null;
-    }
-
-    const manualValue = _.toNumber(manualRecoverableFeesInput);
-    if (_.isNaN(manualValue)) {
-      return null;
-    }
-
-    return manualValue;
-  }, [manualRecoverableFeesInput]);
+    if (manualFeeEntries.length === 0) return null;
+    const rr = _.toNumber(riskRewardRatio);
+    return manualFeeEntries.reduce((total, entry, i) => {
+      const fee = _.toNumber(entry.value) || 0;
+      const prevFee = i === 0 ? 0 : (_.toNumber(manualFeeEntries[i - 1].value) || 0);
+      return total + fee + (i === 0 ? 0 : prevFee / rr);
+    }, 0);
+  }, [manualFeeEntries, riskRewardRatio]);
 
   const effectiveRecoverableFees =
     manualRecoverableFees ?? _.toNumber(autoRecoverableFees);
@@ -340,6 +364,15 @@ const PositionCalculatorV2 = ({
       .then((result) => {
         if (cancelled) return;
         setAutoRecoverableFees(_.toNumber(_.get(result, "totalFees", 0)));
+        const stopLossTrades = _.get(result, "stopLossTrades", []);
+        if (stopLossTrades.length > 0) {
+          const entries = [...stopLossTrades].reverse().map((trade) => ({
+            id: nanoid(),
+            value: trade.fee,
+          }));
+          setFetchedFeeEntries(entries);
+          setManualFeeEntries((prev) => (prev.length === 0 ? entries : prev));
+        }
       })
       .catch((error) => {
         if (cancelled) return;
@@ -763,41 +796,109 @@ const PositionCalculatorV2 = ({
                     }}
                   />
 
-                  <Chip
-                    value={
-                      autoRecoverableFeesLoading
-                        ? "Auto: loading..."
-                        : `Auto: $${formatFeeValue(autoRecoverableFees)}`
-                    }
-                    variant="ghost"
+                  <IconButton
                     size="sm"
-                    className="font-light text-gray-700 rounded flex items-center"
-                  />
+                    variant="text"
+                    color="blue-gray"
+                    className="rounded"
+                    disabled={autoRecoverableFeesLoading || fetchedFeeEntries.length === 0}
+                    onClick={resetFeeEntries}
+                    title="Reset to exchange fees"
+                  >
+                    <ArrowPathIcon className="h-4 w-4" />
+                  </IconButton>
                 </div>
 
-                <Input
-                  type="tel"
-                  size="lg"
-                  label="Manual Fee Override"
-                  value={manualRecoverableFeesInput}
-                  onChange={(e) => {
-                    if (e.target.value === "") {
-                      setManualRecoverableFeesInput("");
-                      return;
-                    }
+                {/* Fee accordion */}
+                <div className="mt-1 rounded-md border border-blue-gray-100 overflow-hidden">
+                  {/* Summary / toggle bar */}
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-600 hover:bg-blue-gray-50/60 transition-colors"
+                    onClick={() => setFeeListOpen((o) => !o)}
+                  >
+                    <span>
+                      {manualFeeEntries.length > 0
+                        ? `${manualFeeEntries.length} fee${manualFeeEntries.length !== 1 ? "s" : ""} · Total: $${formatFeeValue(manualRecoverableFees)}`
+                        : "No fees added"}
+                    </span>
+                    <ChevronDownIcon
+                      className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 ${
+                        feeListOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
 
-                    const callbackFn = (val) => {
-                      setManualRecoverableFeesInput(
-                        `${roundToSamePrecision(val, FEE_PRECISION)}`
-                      );
-                    };
+                  {/* Collapsible body */}
+                  <div
+                    className={`transition-all duration-200 overflow-hidden ${
+                      feeListOpen ? "max-h-[32rem] opacity-100" : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="px-2 pb-2 pt-1 space-y-1.5">
+                      {/* Fee entries */}
+                      {manualFeeEntries.map((entry) => (
+                        <div key={entry.id} className="flex items-center gap-1.5">
+                          <div className="relative flex-1">
+                            <Input
+                              type="tel"
+                              size="md"
+                              label="Fee"
+                              value={entry.value}
+                              onChange={(e) => {
+                                inputHandlerNumber(e.target.value, (val) =>
+                                  updateFeeEntry(entry.id, val)
+                                );
+                              }}
+                              autocomplete="false"
+                              data-lpignore="true"
+                              data-form-type="other"
+                            />
+                          </div>
+                          <IconButton
+                            size="sm"
+                            variant="text"
+                            color="red"
+                            className="rounded flex-shrink-0"
+                            onClick={() => removeFeeEntry(entry.id)}
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                      ))}
 
-                    inputHandlerNumber(e.target.value, callbackFn);
-                  }}
-                  autocomplete="false"
-                  data-lpignore="true"
-                  data-form-type="other"
-                />
+                      {/* Add fee row */}
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <div className="relative flex-1">
+                          <Input
+                            type="tel"
+                            size="md"
+                            label="Add fee"
+                            value={newFeeInput}
+                            onChange={(e) => {
+                              inputHandlerNumber(e.target.value, setNewFeeInput);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") addFeeEntry();
+                            }}
+                            autocomplete="false"
+                            data-lpignore="true"
+                            data-form-type="other"
+                          />
+                        </div>
+                        <IconButton
+                          size="sm"
+                          variant="outlined"
+                          color="blue-gray"
+                          className="rounded flex-shrink-0"
+                          onClick={addFeeEntry}
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                        </IconButton>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {autoRecoverableFeesError ? (
                   <p className="text-xs text-red-500">

@@ -40,7 +40,7 @@ class AsterDex extends Exchange {
     orders.order = {
       symbol: originalSymbol,
       side,
-      positionSide: side === "BUY" ? "LONG" : "SHORT", // Hedge Mode: LONG for BUY, SHORT for SELL
+      positionSide: side === "BUY" ? "LONG" : "SHORT",
       type,
       quantity: _.toNumber(quantity),
       newClientOrderId: this.buildClientOrderId("entry", orderGroupId),
@@ -55,7 +55,7 @@ class AsterDex extends Exchange {
       orders.stopLoss = {
         symbol: orders.order.symbol,
         side: orders.order.side === "BUY" ? "SELL" : "BUY",
-        positionSide: orders.order.positionSide, // Same position side as entry order
+        positionSide: orders.order.positionSide,
         type: "STOP_MARKET",
         quantity: orders.order.quantity,
         stopPrice: _.toNumber(stopLoss),
@@ -69,7 +69,7 @@ class AsterDex extends Exchange {
       orders.takeProfit = {
         symbol: orders.order.symbol,
         side: orders.order.side === "BUY" ? "SELL" : "BUY",
-        positionSide: orders.order.positionSide, // Same position side as entry order
+        positionSide: orders.order.positionSide,
         type: "TAKE_PROFIT",
         quantity: orders.order.quantity,
         stopPrice: _.toNumber(takeProfitTrigger || takeProfit),
