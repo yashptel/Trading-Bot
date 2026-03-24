@@ -835,7 +835,8 @@ const PositionCalculatorV2 = ({
                       feeListOpen ? "max-h-[32rem] opacity-100" : "max-h-0 opacity-0"
                     }`}
                   >
-                    <div className="px-2 pb-2 pt-1 space-y-1.5">
+                    {/* Scrollable fee entries */}
+                    <div className="max-h-48 overflow-y-auto px-2 pt-1 space-y-1.5">
                       {/* Fee entries */}
                       {manualFeeEntries.map((entry) => (
                         <div key={entry.id} className="flex items-center gap-1.5">
@@ -866,9 +867,11 @@ const PositionCalculatorV2 = ({
                           </IconButton>
                         </div>
                       ))}
+                    </div>
 
-                      {/* Add fee row */}
-                      <div className="flex items-center gap-1.5 pt-0.5">
+                    {/* Add fee row – outside scroll area so it stays pinned */}
+                    <div className="px-2 pb-2 pt-1">
+                      <div className="flex items-center gap-1.5">
                         <div className="relative flex-1">
                           <Input
                             type="tel"
