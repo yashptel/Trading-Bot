@@ -59,7 +59,7 @@ class AsterDex extends Exchange {
         type: "STOP_MARKET",
         quantity: orders.order.quantity,
         stopPrice: _.toNumber(stopLoss),
-        workingType: "CONTRACT_PRICE",
+        workingType: "MARK_PRICE",
         timeInForce: timeInForce,
         newClientOrderId: this.buildClientOrderId("sl", orderGroupId),
       };

@@ -252,16 +252,19 @@ class Lighter extends Exchange {
 
       // Stop Loss order
       if (stopLoss) {
+        const stopLossTriggerPrice = this._toInt(stopLoss, priceDecimals);
+
+        // Lighter stop orders trigger when mark price crosses TriggerPrice.
         orders.push({
           MarketIndex: marketIndex,
           ClientOrderIndex: 0,
           BaseAmount: 0,
-          Price: this._toInt(stopLoss, priceDecimals),
+          Price: stopLossTriggerPrice,
           IsAsk: isAsk === 0 ? 1 : 0,
           Type: ORDER_TYPE_STOP_LOSS,
           TimeInForce: TIME_IN_FORCE_IOC,
           ReduceOnly: 1,
-          TriggerPrice: this._toInt(stopLoss, priceDecimals),
+          TriggerPrice: stopLossTriggerPrice,
           OrderExpiry: expiry,
           IntegratorAccountIndex: 0,
           IntegratorTakerFee: 0,
