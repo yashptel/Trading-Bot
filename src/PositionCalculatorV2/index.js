@@ -27,13 +27,9 @@ import {
 import CustomSelect from "../components/CustomSelect";
 import {
   ArrowDownCircleIcon,
-  ArrowPathIcon,
-  ChevronDownIcon,
   CheckIcon,
   Cog6ToothIcon,
   DocumentDuplicateIcon,
-  PlusIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 import getTradeInstance from "../trade";
@@ -51,17 +47,6 @@ import {
 import _ from "lodash";
 import CustomAlert from "../components/CustomAlert";
 import { useSearchParams } from "react-router-dom";
-
-const FEE_PRECISION = 0.01;
-
-const formatFeeValue = (value) => {
-  const feeValue = _.toNumber(value);
-  if (_.isNaN(feeValue)) {
-    return "0";
-  }
-
-  return _.round(feeValue, 2).toFixed(2);
-};
 
 const PositionCalculatorV2 = ({
   isLoading,
@@ -106,79 +91,6 @@ const PositionCalculatorV2 = ({
   const [actualLoss, setActualLoss] = React.useState(0);
   const [actualProfit, setActualProfit] = React.useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [recoverFees, setRecoverFees] = React.useState(false);
-  const [autoRecoverableFees, setAutoRecoverableFees] = React.useState(0);
-  const [autoRecoverableFeesLoading, setAutoRecoverableFeesLoading] =
-    React.useState(false);
-  const [autoRecoverableFeesError, setAutoRecoverableFeesError] =
-    React.useState("");
-  const [manualFeeEntries, setManualFeeEntries] = React.useState([]);
-  const [fetchedFeeEntries, setFetchedFeeEntries] = React.useState([]);
-  const [newFeeInput, setNewFeeInput] = React.useState("");
-  const [feeListOpen, setFeeListOpen] = React.useState(true);
-  const isAsterDex = exchangeId === "asterdex";
-
-  const resetFeeEntries = React.useCallback(() => {
-    setManualFeeEntries(fetchedFeeEntries.map((e) => ({ ...e, id: nanoid() })));
-  }, [fetchedFeeEntries]);
-
-  const addFeeEntry = React.useCallback(() => {
-    const value = _.toNumber(newFeeInput);
-    if (_.isNaN(value) || newFeeInput === "") return;
-    setManualFeeEntries((prev) => [...prev, { id: nanoid(), value }]);
-    setNewFeeInput("");
-  }, [newFeeInput]);
-
-  const removeFeeEntry = React.useCallback((id) => {
-    setManualFeeEntries((prev) => prev.filter((e) => e.id !== id));
-  }, []);
-
-  const updateFeeEntry = React.useCallback((id, raw) => {
-    setManualFeeEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, value: raw } : e))
-    );
-  }, []);
-
-  const manualRecoverableFees = React.useMemo(() => {
-    if (manualFeeEntries.length === 0) return null;
-    const rr = _.toNumber(riskRewardRatio);
-    return manualFeeEntries.reduce((total, entry, i) => {
-      const fee = _.toNumber(entry.value) || 0;
-      const prevFee = i === 0 ? 0 : (_.toNumber(manualFeeEntries[i - 1].value) || 0);
-      return total + fee + (i === 0 ? 0 : prevFee / rr);
-    }, 0);
-  }, [manualFeeEntries, riskRewardRatio]);
-
-  const effectiveRecoverableFees =
-    manualRecoverableFees ?? _.toNumber(autoRecoverableFees);
-
-  const appliedRecoverableFees =
-    isAsterDex && recoverFees ? effectiveRecoverableFees : 0;
-
-  const effectiveLossPerTrade = React.useMemo(() => {
-    const baseLossPerTrade = _.toNumber(lossPerTrade);
-    const rewardRatio = _.toNumber(riskRewardRatio);
-    const recoverableFees = _.toNumber(appliedRecoverableFees);
-
-    if (
-      !isAsterDex ||
-      !recoverFees ||
-      _.isNaN(baseLossPerTrade) ||
-      _.isNaN(rewardRatio) ||
-      rewardRatio <= 0 ||
-      recoverableFees <= 0
-    ) {
-      return baseLossPerTrade;
-    }
-
-    return baseLossPerTrade + recoverableFees / rewardRatio;
-  }, [
-    appliedRecoverableFees,
-    isAsterDex,
-    lossPerTrade,
-    recoverFees,
-    riskRewardRatio,
-  ]);
 
   useEffect(() => {
     setSearchParams({ exchangeId, tradingPair });
@@ -323,80 +235,6 @@ const PositionCalculatorV2 = ({
 
   useEffect(() => {
     let cancelled = false;
-
-    if (!isAsterDex) {
-      setAutoRecoverableFees(0);
-      setAutoRecoverableFeesError("");
-      setAutoRecoverableFeesLoading(false);
-      return;
-    }
-
-    const apiCredential = _.find(apiCredentials, { exchangeId });
-    if (
-      !apiCredential?.apiKey ||
-      !apiCredential?.secretKey ||
-      !tradingPairObj?.originalSymbol
-    ) {
-      setAutoRecoverableFees(0);
-      setAutoRecoverableFeesError("");
-      setAutoRecoverableFeesLoading(false);
-      return;
-    }
-
-    const client = getTradeInstance(exchangeId, {
-      apiKey: apiCredential.apiKey,
-      secret: apiCredential.secretKey,
-      passphrase: apiCredential.passphrase,
-    });
-
-    if (!client?.getRecoverableStopFees) {
-      setAutoRecoverableFees(0);
-      setAutoRecoverableFeesError("Auto fee lookup is unavailable.");
-      setAutoRecoverableFeesLoading(false);
-      return;
-    }
-
-    setAutoRecoverableFeesLoading(true);
-    setAutoRecoverableFeesError("");
-
-    client
-      .getRecoverableStopFees(tradingPairObj.originalSymbol)
-      .then((result) => {
-        if (cancelled) return;
-        setAutoRecoverableFees(_.toNumber(_.get(result, "totalFees", 0)));
-        const stopLossTrades = _.get(result, "stopLossTrades", []);
-        if (stopLossTrades.length > 0) {
-          const entries = [...stopLossTrades].reverse().map((trade) => ({
-            id: nanoid(),
-            value: trade.fee,
-          }));
-          setFetchedFeeEntries(entries);
-          setManualFeeEntries((prev) => (prev.length === 0 ? entries : prev));
-        }
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setAutoRecoverableFees(0);
-        setAutoRecoverableFeesError(
-          _.get(
-            error,
-            "response.data.msg",
-            "Failed to load recoverable fees."
-          )
-        );
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setAutoRecoverableFeesLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiCredentials, exchangeId, isAsterDex, tradingPairObj?.originalSymbol]);
-
-  useEffect(() => {
-    let cancelled = false;
     if (!copied) {
       return;
     }
@@ -463,7 +301,7 @@ const PositionCalculatorV2 = ({
   useEffect(() => {
     const [positionSz, positionAmt] = calcPositionSize(
       _.toNumber(price),
-      _.toNumber(effectiveLossPerTrade),
+      _.toNumber(lossPerTrade),
       _.toNumber(stopLoss)
     );
     if (_.isNaN(positionSz)) return;
@@ -474,7 +312,7 @@ const PositionCalculatorV2 = ({
     roundToSamePrecisionWithCallback(positionSz, quantityStep, setPositionSize);
 
     roundToSamePrecisionWithCallback(positionAmt, tickSize, setPositionAmount);
-  }, [effectiveLossPerTrade, price, stopLoss, tradingPairObj]);
+  }, [lossPerTrade, price, stopLoss, tradingPairObj]);
 
   useEffect(() => {
     if (activeTab === "manual") {
@@ -783,133 +621,6 @@ const PositionCalculatorV2 = ({
                   );
                 })}
             </div>
-
-            {isAsterDex ? (
-              <div className="mt-3 space-y-2 rounded-lg border border-blue-gray-50 bg-blue-gray-50/30 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Checkbox
-                    checked={recoverFees}
-                    onChange={(e) => setRecoverFees(e.target.checked)}
-                    label="Recover stop fees at TP"
-                    containerProps={{
-                      className: "-ml-2 -mr-2",
-                    }}
-                  />
-
-                  <IconButton
-                    size="sm"
-                    variant="text"
-                    color="blue-gray"
-                    className="rounded"
-                    disabled={autoRecoverableFeesLoading || fetchedFeeEntries.length === 0}
-                    onClick={resetFeeEntries}
-                    title="Reset to exchange fees"
-                  >
-                    <ArrowPathIcon className="h-4 w-4" />
-                  </IconButton>
-                </div>
-
-                {/* Fee accordion */}
-                <div className="mt-1 rounded-md border border-blue-gray-100 overflow-hidden">
-                  {/* Summary / toggle bar */}
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-gray-600 hover:bg-blue-gray-50/60 transition-colors"
-                    onClick={() => setFeeListOpen((o) => !o)}
-                  >
-                    <span>
-                      {manualFeeEntries.length > 0
-                        ? `${manualFeeEntries.length} fee${manualFeeEntries.length !== 1 ? "s" : ""} · Total: $${formatFeeValue(manualRecoverableFees)}`
-                        : "No fees added"}
-                    </span>
-                    <ChevronDownIcon
-                      className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 ${
-                        feeListOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* Collapsible body */}
-                  <div
-                    className={`transition-all duration-200 overflow-hidden ${
-                      feeListOpen ? "max-h-[32rem] opacity-100" : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    {/* Scrollable fee entries */}
-                    <div className="max-h-48 overflow-y-auto px-2 pt-1 space-y-1.5">
-                      {/* Fee entries */}
-                      {manualFeeEntries.map((entry) => (
-                        <div key={entry.id} className="flex items-center gap-1.5">
-                          <div className="relative flex-1">
-                            <Input
-                              type="tel"
-                              size="md"
-                              label="Fee"
-                              value={entry.value}
-                              onChange={(e) => {
-                                inputHandlerNumber(e.target.value, (val) =>
-                                  updateFeeEntry(entry.id, val)
-                                );
-                              }}
-                              autocomplete="false"
-                              data-lpignore="true"
-                              data-form-type="other"
-                            />
-                          </div>
-                          <IconButton
-                            size="sm"
-                            variant="text"
-                            color="red"
-                            className="rounded flex-shrink-0"
-                            onClick={() => removeFeeEntry(entry.id)}
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </IconButton>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Add fee row – outside scroll area so it stays pinned */}
-                    <div className="px-2 pb-2 pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="relative flex-1">
-                          <Input
-                            type="tel"
-                            size="md"
-                            label="Add fee"
-                            value={newFeeInput}
-                            onChange={(e) => {
-                              inputHandlerNumber(e.target.value, setNewFeeInput);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") addFeeEntry();
-                            }}
-                            autocomplete="false"
-                            data-lpignore="true"
-                            data-form-type="other"
-                          />
-                        </div>
-                        <IconButton
-                          size="sm"
-                          variant="outlined"
-                          color="blue-gray"
-                          className="rounded flex-shrink-0"
-                          onClick={addFeeEntry}
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                        </IconButton>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {autoRecoverableFeesError ? (
-                  <p className="text-xs text-red-500">
-                    {autoRecoverableFeesError}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
           </div>
 
           <div className="relative flex w-full">
