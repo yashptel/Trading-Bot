@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import NotFound from "./404";
 import App from "./App";
 import "./index.css";
@@ -43,15 +43,7 @@ root.render(
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<App />}>
-                <Route
-                  path="/"
-                  element={<Navigate replace to="/position-calculator-v2" />}
-                />
-
-                <Route
-                  path="/position-calculator-v2"
-                  element={<PositionCalculatorV2 />}
-                />
+                <Route path="/" element={<PositionCalculatorV2 />} />
 
                 <Route path="/winrate" element={<Winrate />} />
                 <Route path="*" element={<NotFound />} />

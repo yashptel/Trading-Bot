@@ -47,6 +47,7 @@ import {
 import _ from "lodash";
 import CustomAlert from "../components/CustomAlert";
 import { useSearchParams } from "react-router-dom";
+import { decodePrefill } from "../Utils/prefill";
 
 const PositionCalculatorV2 = ({
   isLoading,
@@ -90,11 +91,14 @@ const PositionCalculatorV2 = ({
 
   const [actualLoss, setActualLoss] = React.useState(0);
   const [actualProfit, setActualProfit] = React.useState(0);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  useEffect(() => {
-    setSearchParams({ exchangeId, tradingPair });
-  }, [exchangeId, tradingPair]);
+  const prefillData = React.useMemo(
+    () => decodePrefill(searchParams.get("d")),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const pendingPairRef = React.useRef(prefillData ? prefillData.p : null);
 
   useEffect(() => {
     const loss = calcLoss(
@@ -254,6 +258,26 @@ const PositionCalculatorV2 = ({
   }, [tradingPair, tradingPairs]);
 
   useEffect(() => {
+    const pending = pendingPairRef.current;
+    if (!pending) return;
+    if (!tradingPairs || tradingPairs.length === 0) return;
+
+    const target = String(pending).toLowerCase();
+    const match = _.find(
+      tradingPairs,
+      (p) => String(p.searchName).toLowerCase() === target
+    );
+
+    if (!match) {
+      addToast({
+        type: "error",
+        message: `Pair ${pending} not found on ${prefillData?.x ?? "exchange"}`,
+      });
+    }
+    pendingPairRef.current = null;
+  }, [tradingPairs, addToast, prefillData]);
+
+  useEffect(() => {
     let cancelled = false;
     const client = getTradeInstance(exchangeId);
     if (!client) {
@@ -297,6 +321,26 @@ const PositionCalculatorV2 = ({
       setPrice(marketPrice);
     }
   }, [marketPrice, useMarketOrder, useMarketPrice]);
+
+  useEffect(() => {
+    const raw = searchParams.get("d");
+    if (!raw) return;
+
+    if (!prefillData) {
+      addToast({
+        type: "error",
+        message: "Couldn't load alert data — fill in manually.",
+      });
+      return;
+    }
+
+    setUseMarketOrder(false);
+    setUseMarketPrice(false);
+    setPrice(prefillData.e);
+    setStopLoss(prefillData.s);
+    setTakeProfit(prefillData.t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const [positionSz, positionAmt] = calcPositionSize(
@@ -353,7 +397,7 @@ const PositionCalculatorV2 = ({
         <CardBody className="space-y-4 md:space-y-6">
           <div className="flex items-center justify-between gap-2 mb-8 md:mb-10">
             <CustomSelect
-              defaultValue={searchParams.get("exchangeId") || exchangeId}
+              defaultValue={prefillData?.x || exchangeId}
               onChange={(val) => setExchangeId(val)}
               showSearch={false}
               key="exchange-select"
@@ -365,7 +409,7 @@ const PositionCalculatorV2 = ({
 
             <CustomSelect
               showSearch={true}
-              defaultValue={searchParams.get("tradingPair") || tradingPair}
+              defaultValue={prefillData?.p || tradingPair}
               onChange={(val) => setTradingPair(val)}
               key="pair-select"
               label="Select Pair"
