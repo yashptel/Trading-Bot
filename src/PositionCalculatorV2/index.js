@@ -98,7 +98,7 @@ const PositionCalculatorV2 = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  const pendingPairRef = React.useRef(prefillData ? prefillData.p : null);
+  const pendingPrefillRef = React.useRef(prefillData);
 
   useEffect(() => {
     const loss = calcLoss(
@@ -258,11 +258,11 @@ const PositionCalculatorV2 = ({
   }, [tradingPair, tradingPairs]);
 
   useEffect(() => {
-    const pending = pendingPairRef.current;
+    const pending = pendingPrefillRef.current;
     if (!pending) return;
     if (!tradingPairs || tradingPairs.length === 0) return;
 
-    const target = String(pending).toLowerCase();
+    const target = String(pending.p).toLowerCase();
     const match = _.find(
       tradingPairs,
       (p) => String(p.searchName).toLowerCase() === target
@@ -271,11 +271,20 @@ const PositionCalculatorV2 = ({
     if (!match) {
       addToast({
         type: "error",
-        message: `Pair ${pending} not found on ${prefillData?.x ?? "exchange"}`,
+        message: `Pair ${pending.p} not found on ${pending.x}`,
       });
+      pendingPrefillRef.current = null;
+      return;
     }
-    pendingPairRef.current = null;
-  }, [tradingPairs, addToast, prefillData]);
+
+    if (!tradingPairObj) return;
+
+    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+    roundToSamePrecisionWithCallback(pending.e, tickSize, setPrice);
+    roundToSamePrecisionWithCallback(pending.s, tickSize, setStopLoss);
+    roundToSamePrecisionWithCallback(pending.t, tickSize, setTakeProfit);
+    pendingPrefillRef.current = null;
+  }, [tradingPairs, tradingPairObj, addToast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -336,9 +345,9 @@ const PositionCalculatorV2 = ({
 
     setUseMarketOrder(false);
     setUseMarketPrice(false);
-    setPrice(prefillData.e);
-    setStopLoss(prefillData.s);
-    setTakeProfit(prefillData.t);
+    // Price, stop loss, take profit are applied later (after tradingPairObj
+    // loads) so they can be rounded to the exchange's tick size, matching
+    // what manual entry does via roundToSamePrecisionWithCallback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
