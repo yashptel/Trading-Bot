@@ -283,6 +283,10 @@ const PositionCalculatorV2 = ({
     roundToSamePrecisionWithCallback(pending.e, tickSize, setPrice);
     roundToSamePrecisionWithCallback(pending.s, tickSize, setStopLoss);
     roundToSamePrecisionWithCallback(pending.t, tickSize, setTakeProfit);
+    // Optional risk amount from the alert deep link; drives position sizing.
+    if (Number.isFinite(pending.l)) {
+      roundToSamePrecisionWithCallback(pending.l, 0.01, setLossPerTrade);
+    }
     pendingPrefillRef.current = null;
   }, [tradingPairs, tradingPairObj, addToast]);
 
