@@ -85,6 +85,12 @@ const CustomSelect = ({
 
   const [selected, setSelected] = React.useState(defaultValue);
 
+  React.useEffect(() => {
+    if (defaultValue && rows[defaultValue] && defaultValue !== selected) {
+      setSelected(defaultValue);
+    }
+  }, [defaultValue, rows, selected]);
+
   return (
     <Select
       value={rows[selected] && selected}

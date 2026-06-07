@@ -49,6 +49,28 @@ import CustomAlert from "../components/CustomAlert";
 import { useSearchParams } from "react-router-dom";
 import { decodePrefill } from "../Utils/prefill";
 
+function normalizePairName(value) {
+  return String(value || "")
+    .replace("/", "")
+    .toLowerCase();
+}
+
+function findTradingPairByPrefill(tradingPairs, rawPair) {
+  const target = normalizePairName(rawPair);
+  if (!target) return undefined;
+
+  return _.find(tradingPairs, (pair) => {
+    const candidates = [
+      pair.searchName,
+      pair.displayName,
+      pair.baseAsset,
+      pair.originalSymbol,
+    ].map(normalizePairName);
+
+    return candidates.includes(target);
+  });
+}
+
 const PositionCalculatorV2 = ({
   isLoading,
   setIsLoading,
@@ -262,11 +284,7 @@ const PositionCalculatorV2 = ({
     if (!pending) return;
     if (!tradingPairs || tradingPairs.length === 0) return;
 
-    const target = String(pending.p).toLowerCase();
-    const match = _.find(
-      tradingPairs,
-      (p) => String(p.searchName).toLowerCase() === target
-    );
+    const match = findTradingPairByPrefill(tradingPairs, pending.p);
 
     if (!match) {
       addToast({
@@ -277,9 +295,11 @@ const PositionCalculatorV2 = ({
       return;
     }
 
-    if (!tradingPairObj) return;
+    if (tradingPair !== match.searchName) {
+      setTradingPair(match.searchName);
+    }
 
-    const tickSize = _.get(tradingPairObj, "tickSize", 0.0001);
+    const tickSize = _.get(match, "tickSize", 0.0001);
     roundToSamePrecisionWithCallback(pending.e, tickSize, setPrice);
     roundToSamePrecisionWithCallback(pending.s, tickSize, setStopLoss);
     roundToSamePrecisionWithCallback(pending.t, tickSize, setTakeProfit);
@@ -288,7 +308,7 @@ const PositionCalculatorV2 = ({
       roundToSamePrecisionWithCallback(pending.l, 0.01, setLossPerTrade);
     }
     pendingPrefillRef.current = null;
-  }, [tradingPairs, tradingPairObj, addToast]);
+  }, [tradingPairs, tradingPair, setTradingPair, addToast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -422,7 +442,7 @@ const PositionCalculatorV2 = ({
 
             <CustomSelect
               showSearch={true}
-              defaultValue={prefillData?.p || tradingPair}
+              defaultValue={tradingPair}
               onChange={(val) => setTradingPair(val)}
               key="pair-select"
               label="Select Pair"
