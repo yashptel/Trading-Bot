@@ -14,14 +14,16 @@ import {
 const ORDER_TYPE_LIMIT = 0;
 const ORDER_TYPE_MARKET = 1;
 const ORDER_TYPE_STOP_LOSS = 2;
-const ORDER_TYPE_TAKE_PROFIT = 5; // Take Profit Limit instead of 4 (Market)
+const ORDER_TYPE_TAKE_PROFIT_LIMIT = 5;
 
 // GroupingType for entry + TP + SL
 const GROUPING_TYPE_ENTRY_TP_SL = 3;
 
 // TimeInForce
-const TIME_IN_FORCE_IOC = 0; // Immediate Or Cancel (used for market orders / TP/SL)
+const TIME_IN_FORCE_IOC = 0; // Required by Lighter for market and stop-market orders
 const TIME_IN_FORCE_GTC = 1; // Good Till Time
+
+const EXIT_SLIPPAGE_RATE = 0.002; // 0.2% slippage for TP/SL by default, configurable per-trade in takeTrade()
 
 class Lighter extends Exchange {
   constructor(args) {
@@ -56,7 +58,7 @@ class Lighter extends Exchange {
         this.privateKey,
         this.CHAIN_ID,
         this.apiKeyIndex,
-        this.accountIndex
+        this.accountIndex,
       );
       this._clientInitialised = true;
     }
@@ -81,7 +83,10 @@ class Lighter extends Exchange {
    */
   async _getMarketBySymbol(originalSymbol) {
     const markets = await this._getMarkets();
-    return _.find(markets, (m) => String(m.market_id) === String(originalSymbol));
+    return _.find(
+      markets,
+      (m) => String(m.market_id) === String(originalSymbol),
+    );
   }
 
   /**
@@ -90,6 +95,15 @@ class Lighter extends Exchange {
    */
   _toInt(value, decimals) {
     return Math.round(parseFloat(value) * Math.pow(10, decimals));
+  }
+
+  /**
+   * Returns the worst acceptable exit price after slippage.
+   */
+  _applyExitSlippage(price, isAsk, slippageRate = EXIT_SLIPPAGE_RATE) {
+    const numericPrice = parseFloat(price);
+    const multiplier = isAsk ? 1 - slippageRate : 1 + slippageRate;
+    return numericPrice * multiplier;
   }
 
   // ---------------------------------------------------------------------------
@@ -106,7 +120,7 @@ class Lighter extends Exchange {
       .map((m) => {
         const sizeDecimals = m.supported_size_decimals ?? 4;
         const priceDecimals = m.supported_price_decimals ?? 2;
-        
+
         // For perps, symbol is just "BTC" or "ETH". Quote is implicitly "USDC"
         const baseAsset = m.symbol;
         const quoteAsset = "USDC";
@@ -148,7 +162,7 @@ class Lighter extends Exchange {
     ws.onopen = () => {
       console.log("Connected to Lighter WebSocket.");
       ws.send(
-        JSON.stringify({ type: "subscribe", channel: `trade/${marketIndex}` })
+        JSON.stringify({ type: "subscribe", channel: `trade/${marketIndex}` }),
       );
     };
 
@@ -183,13 +197,14 @@ class Lighter extends Exchange {
    */
   async takeTrade({
     originalSymbol, // market_id string
-    side,           // "BUY" or "SELL"
+    side, // "BUY" or "SELL"
     type = "MARKET",
     price,
     stopLoss,
     takeProfit,
     takeProfitTrigger,
     quantity,
+    slippage = EXIT_SLIPPAGE_RATE,
     addToast,
   }) {
     try {
@@ -205,6 +220,7 @@ class Lighter extends Exchange {
       const priceDecimals = market._priceDecimals;
       const marketIndex = parseInt(originalSymbol);
       const isAsk = side === "SELL" ? 1 : 0;
+      const exitIsAsk = isAsk === 0 ? 1 : 0;
 
       const expiry = Date.now() + 28 * 24 * 60 * 60 * 1000; // 28 days
 
@@ -214,33 +230,39 @@ class Lighter extends Exchange {
       // Entry order
       const entryBaseAmount = this._toInt(quantity, sizeDecimals);
       const entryPrice = this._toInt(price, priceDecimals);
+      const isMarketEntry = type === "MARKET";
       orders.push({
         MarketIndex: marketIndex,
         ClientOrderIndex: 0,
         BaseAmount: entryBaseAmount,
         Price: entryPrice,
         IsAsk: isAsk,
-        Type: type === "MARKET" ? ORDER_TYPE_MARKET : ORDER_TYPE_LIMIT,
-        TimeInForce: type === "MARKET" ? TIME_IN_FORCE_IOC : TIME_IN_FORCE_GTC,
+        Type: isMarketEntry ? ORDER_TYPE_MARKET : ORDER_TYPE_LIMIT,
+        TimeInForce: isMarketEntry ? TIME_IN_FORCE_IOC : TIME_IN_FORCE_GTC,
         ReduceOnly: 0,
         TriggerPrice: 0,
-        OrderExpiry: expiry,
+        OrderExpiry: isMarketEntry ? 0 : expiry,
         IntegratorAccountIndex: 0,
         IntegratorTakerFee: 0,
         IntegratorMakerFee: 0,
       });
 
-      // Take Profit order
+      // Take Profit Limit order
       if (takeProfit) {
-        const tpTrigger = takeProfitTrigger ?? takeProfit;
+        const tpTrigger = takeProfit;
+        const tpLimitPrice = this._applyExitSlippage(
+          tpTrigger,
+          exitIsAsk,
+          slippage,
+        );
         orders.push({
           MarketIndex: marketIndex,
           ClientOrderIndex: 0,
           BaseAmount: 0, // 0 = match position size
-          Price: this._toInt(takeProfit, priceDecimals),
-          IsAsk: isAsk === 0 ? 1 : 0, // opposite side to close
-          Type: ORDER_TYPE_TAKE_PROFIT,
-          TimeInForce: TIME_IN_FORCE_IOC,
+          Price: this._toInt(tpLimitPrice, priceDecimals),
+          IsAsk: exitIsAsk,
+          Type: ORDER_TYPE_TAKE_PROFIT_LIMIT,
+          TimeInForce: TIME_IN_FORCE_GTC,
           ReduceOnly: 1,
           TriggerPrice: this._toInt(tpTrigger, priceDecimals),
           OrderExpiry: expiry,
@@ -252,19 +274,23 @@ class Lighter extends Exchange {
 
       // Stop Loss order
       if (stopLoss) {
-        const stopLossTriggerPrice = this._toInt(stopLoss, priceDecimals);
+        const stopLossLimitPrice = this._applyExitSlippage(
+          stopLoss,
+          exitIsAsk,
+          slippage,
+        );
 
-        // Lighter stop orders trigger when mark price crosses TriggerPrice.
+        // Stop-market exits must use IOC in Lighter; reliability wins for SL.
         orders.push({
           MarketIndex: marketIndex,
           ClientOrderIndex: 0,
           BaseAmount: 0,
-          Price: stopLossTriggerPrice,
-          IsAsk: isAsk === 0 ? 1 : 0,
+          Price: this._toInt(stopLossLimitPrice, priceDecimals),
+          IsAsk: exitIsAsk,
           Type: ORDER_TYPE_STOP_LOSS,
           TimeInForce: TIME_IN_FORCE_IOC,
           ReduceOnly: 1,
-          TriggerPrice: stopLossTriggerPrice,
+          TriggerPrice: this._toInt(stopLoss, priceDecimals),
           OrderExpiry: expiry,
           IntegratorAccountIndex: 0,
           IntegratorTakerFee: 0,
@@ -287,9 +313,11 @@ class Lighter extends Exchange {
       const signed = signCreateGroupedOrders(
         GROUPING_TYPE_ENTRY_TP_SL,
         orders,
-        nonce,
-        this.apiKeyIndex,
-        this.accountIndex
+        {
+          nonce,
+          apiKeyIndex: this.apiKeyIndex,
+          accountIndex: this.accountIndex,
+        },
       );
 
       if (!signed || !signed.txInfo) {
@@ -297,7 +325,11 @@ class Lighter extends Exchange {
       }
 
       // 5. Generate auth token (valid 7h by default)
-      const { authToken } = createAuthToken(0, this.apiKeyIndex, this.accountIndex);
+      const { authToken } = createAuthToken(
+        0,
+        this.apiKeyIndex,
+        this.accountIndex,
+      );
 
       // 6. POST via proxy
       const body = new URLSearchParams({
@@ -322,7 +354,7 @@ class Lighter extends Exchange {
       const message = _.get(
         error,
         "response.data.message",
-        error.message || "Failed to place order on Lighter."
+        error.message || "Failed to place order on Lighter.",
       );
       addToast({ type: "error", message });
       console.error("[Lighter] takeTrade error:", error);

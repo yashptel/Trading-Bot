@@ -2,6 +2,8 @@
 
 The WASM binary (`public/lighter-signer.wasm`) and runtime shim (`public/wasm_exec.js`) are compiled from the [`lighter-go`](https://github.com/elliottech/lighter-go) repository. When Lighter.xyz ships a new SDK version you should rebuild them.
 
+Current target: `lighter-go` release tag `v1.0.6`.
+
 ## Prerequisites
 
 - [Go](https://go.dev/dl/) ≥ 1.21 installed
@@ -12,9 +14,9 @@ The WASM binary (`public/lighter-signer.wasm`) and runtime shim (`public/wasm_ex
 ### 1. Pull the latest `lighter-go`
 
 ```bash
-git clone https://github.com/elliottech/lighter-go /tmp/lighter-go
+git clone --branch v1.0.6 https://github.com/elliottech/lighter-go /tmp/lighter-go
 # or, if already cloned:
-cd /tmp/lighter-go && git pull
+cd /tmp/lighter-go && git fetch --tags && git checkout v1.0.6
 ```
 
 ### 2. Vendor dependencies
@@ -24,9 +26,16 @@ cd /tmp/lighter-go
 go mod vendor
 ```
 
+Note: the `v1.0.6` tag has a browser-WASM compile issue where `wasm/main.go`
+still assigns legacy per-order integrator fields that no longer exist on
+`types.CreateOrderTxReq` / `types.ModifyOrderTxReq`. To rebuild this exact tag,
+remove those field assignments in the temporary checkout only, while keeping the
+exported JS function arguments unchanged.
+
 ### 3. Compile the WASM binary
 
 ```bash
+mkdir -p ./build
 GOOS=js GOARCH=wasm go build -trimpath -o ./build/lighter-signer.wasm ./wasm/
 ```
 
@@ -37,7 +46,7 @@ GOOS=js GOARCH=wasm go build -trimpath -o ./build/lighter-signer.wasm ./wasm/
 cp ./build/lighter-signer.wasm /path/to/Trading-Bot/public/lighter-signer.wasm
 
 # Go runtime shim (must match the Go version used to compile)
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" /path/to/Trading-Bot/public/wasm_exec.js
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" /path/to/Trading-Bot/public/wasm_exec.js
 ```
 
 ### 5. Check for API changes in `wasm/main.go`
@@ -49,6 +58,11 @@ Open `/tmp/lighter-go/wasm/main.go` and verify that the signatures of the functi
 | `CreateClient` | `url, privateKey, chainId, apiKeyIndex, accountIndex` |
 | `CreateAuthToken` | `deadline, apiKeyIndex, accountIndex` |
 | `SignCreateGroupedOrders` | `groupingType, ordersArray, nonce, apiKeyIndex, accountIndex` |
+
+Newer unreleased `lighter-go` builds changed `SignCreateGroupedOrders` to accept
+integrator, self-trade, and skip-nonce arguments before `nonce`. Update only the
+signature version constant in `src/trade/lighterWasm.js` when adopting that
+released WASM shape.
 
 Each order object in `ordersArray` must have these integer fields:
 

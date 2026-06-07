@@ -5,12 +5,27 @@
  * Exposes wrapped versions of the WASM globals:
  *   - createClient(url, privateKey, chainId, apiKeyIndex, accountIndex)
  *   - createAuthToken(deadline, apiKeyIndex, accountIndex)
- *   - signCreateGroupedOrders(groupingType, orders, nonce, apiKeyIndex, accountIndex)
+ *   - signCreateGroupedOrders(groupingType, orders, options)
  *
  * The WASM binary is served from /lighter-signer.wasm alongside wasm_exec.js.
  */
 
 let wasmReady = null;
+
+export const LIGHTER_WASM_VERSION = "v1.0.6";
+
+const GROUPED_ORDERS_SIGNATURE_LEGACY = 1;
+const GROUPED_ORDERS_SIGNATURE_WITH_ATTRIBUTES = 2;
+const GROUPED_ORDERS_SIGNATURE_VERSION = GROUPED_ORDERS_SIGNATURE_LEGACY;
+
+const DEFAULT_API_KEY_INDEX = 255;
+const DEFAULT_ACCOUNT_INDEX = -1;
+const DEFAULT_INTEGRATOR_ACCOUNT_INDEX = 0;
+const DEFAULT_INTEGRATOR_TAKER_FEE = 0;
+const DEFAULT_INTEGRATOR_MAKER_FEE = 0;
+const SELF_TRADE_BEHAVIOR_EXPIRE_MAKER = 0;
+const SELF_TRADE_EQUALITY_ACCOUNT_INDEX = 0;
+const SKIP_NONCE_DISABLED = 0;
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -88,22 +103,94 @@ export function createAuthToken(deadline, apiKeyIndex, accountIndex) {
   return callWasm("CreateAuthToken", deadline, apiKeyIndex, accountIndex);
 }
 
+function normalizeGroupedOrderSignerOptions(optionsOrNonce, apiKeyIndex, accountIndex) {
+  if (typeof optionsOrNonce === "object" && optionsOrNonce !== null) {
+    const useDefaultSigner = optionsOrNonce.useDefaultSigner === true;
+    return {
+      nonce: optionsOrNonce.nonce ?? -1,
+      apiKeyIndex: useDefaultSigner
+        ? DEFAULT_API_KEY_INDEX
+        : optionsOrNonce.apiKeyIndex,
+      accountIndex: useDefaultSigner
+        ? DEFAULT_ACCOUNT_INDEX
+        : optionsOrNonce.accountIndex,
+      integratorAccountIndex:
+        optionsOrNonce.integratorAccountIndex ?? DEFAULT_INTEGRATOR_ACCOUNT_INDEX,
+      integratorTakerFee:
+        optionsOrNonce.integratorTakerFee ?? DEFAULT_INTEGRATOR_TAKER_FEE,
+      integratorMakerFee:
+        optionsOrNonce.integratorMakerFee ?? DEFAULT_INTEGRATOR_MAKER_FEE,
+      selfTradeBehaviorMode:
+        optionsOrNonce.selfTradeBehaviorMode ?? SELF_TRADE_BEHAVIOR_EXPIRE_MAKER,
+      selfTradeEqualityMode:
+        optionsOrNonce.selfTradeEqualityMode ?? SELF_TRADE_EQUALITY_ACCOUNT_INDEX,
+      skipNonce: optionsOrNonce.skipNonce ?? SKIP_NONCE_DISABLED,
+    };
+  }
+
+  return {
+    nonce: optionsOrNonce,
+    apiKeyIndex,
+    accountIndex,
+    integratorAccountIndex: DEFAULT_INTEGRATOR_ACCOUNT_INDEX,
+    integratorTakerFee: DEFAULT_INTEGRATOR_TAKER_FEE,
+    integratorMakerFee: DEFAULT_INTEGRATOR_MAKER_FEE,
+    selfTradeBehaviorMode: SELF_TRADE_BEHAVIOR_EXPIRE_MAKER,
+    selfTradeEqualityMode: SELF_TRADE_EQUALITY_ACCOUNT_INDEX,
+    skipNonce: SKIP_NONCE_DISABLED,
+  };
+}
+
 /**
  * Signs a grouped batch of orders (tx_type 28).
  * @param {number}  groupingType  - 3 for entry+TP+SL
  * @param {Array}   orders        - array of CreateOrderTxReq objects
- * @param {number}  nonce         - -1 to let the client auto-manage
- * @param {number}  apiKeyIndex
- * @param {number}  accountIndex
+ * @param {Object|number} optionsOrNonce - signer options, or legacy nonce
+ * @param {number}  apiKeyIndex          - legacy positional api key index
+ * @param {number}  accountIndex         - legacy positional account index
  * @returns {{ tx_type: number, tx_info: string }}
  */
-export function signCreateGroupedOrders(groupingType, orders, nonce, apiKeyIndex, accountIndex) {
+export function signCreateGroupedOrders(
+  groupingType,
+  orders,
+  optionsOrNonce,
+  apiKeyIndex,
+  accountIndex
+) {
   const fnName = "SignCreateGroupedOrders";
   const fn = window[fnName];
   if (typeof fn !== "function") {
     throw new Error(`WASM function "${fnName}" is not available yet.`);
   }
-  const result = fn(groupingType, orders, nonce, apiKeyIndex, accountIndex);
+  const options = normalizeGroupedOrderSignerOptions(
+    optionsOrNonce,
+    apiKeyIndex,
+    accountIndex
+  );
+
+  const result =
+    GROUPED_ORDERS_SIGNATURE_VERSION === GROUPED_ORDERS_SIGNATURE_WITH_ATTRIBUTES
+      ? fn(
+          groupingType,
+          orders,
+          options.integratorAccountIndex,
+          options.integratorTakerFee,
+          options.integratorMakerFee,
+          options.selfTradeBehaviorMode,
+          options.selfTradeEqualityMode,
+          options.skipNonce,
+          options.nonce,
+          options.apiKeyIndex,
+          options.accountIndex
+        )
+      : fn(
+          groupingType,
+          orders,
+          options.nonce,
+          options.apiKeyIndex,
+          options.accountIndex
+        );
+
   if (result && result.error) {
     console.error(`[lighter-wasm] ${fnName} returned error:`, result.error);
     throw new Error(`[lighter-wasm] ${fnName}: ${result.error}`);
