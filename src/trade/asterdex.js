@@ -78,14 +78,13 @@ class AsterDex extends Exchange {
 
     const keys = Object.keys(orders);
     const responses = [];
-    const timestamp = await this.getServerTime();
 
     try {
       for (const key of keys) {
         const params = {
           ...orders[key],
           recvWindow: 5000,
-          timestamp,
+          timestamp: await this.getServerTime(),
         };
 
         const signature = this.generateSignature(params);
