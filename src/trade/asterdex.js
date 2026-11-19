@@ -3,10 +3,21 @@ import http from "./api";
 import _ from "lodash";
 import { store } from "../store/index.js";
 import { w3cwebsocket as WebSocket } from "websocket";
-import CryptoJS from "crypto-js";
+import { privateKeyToAccount } from "viem/accounts";
 
 const CLIENT_ORDER_ID_PREFIX = "tb";
 const SERVER_TIME_CACHE_MS = 60_000;
+const API_WALLET_ERROR =
+  "Aster needs an API wallet: set API Key to the API wallet address and API Secret to its private key.";
+const SIGN_DOMAIN = {
+  name: "AsterSignTransaction",
+  version: "1",
+  chainId: 1666,
+  verifyingContract: "0x0000000000000000000000000000000000000000",
+};
+const SIGN_TYPES = { Message: [{ name: "msg", type: "string" }] };
+
+let lastNonce = 0;
 
 class AsterDex extends Exchange {
   constructor(args) {
@@ -31,6 +42,16 @@ class AsterDex extends Exchange {
     timeInForce = "GTC",
     addToast,
   }) {
+    const account = this.getApiWalletAccount();
+
+    if (!account) {
+      addToast({
+        type: "error",
+        message: API_WALLET_ERROR,
+      });
+      return;
+    }
+
     const orders = {};
     const orderGroupId = this.createOrderGroupId();
 
@@ -81,24 +102,37 @@ class AsterDex extends Exchange {
 
     try {
       for (const key of keys) {
-        const params = {
-          ...orders[key],
-          recvWindow: 5000,
-          timestamp: await this.getServerTime(),
-        };
+        const nonce = Math.max(
+          (await this.getServerTime()) * 1000,
+          lastNonce + 1
+        );
+        lastNonce = nonce;
 
-        const signature = this.generateSignature(params);
-        params.signature = signature;
+        const params = _.mapValues(
+          {
+            ...orders[key],
+            nonce,
+            signer: account.address,
+          },
+          String
+        );
 
-        const headers = {
-          "X-MBX-APIKEY": this.apiKey,
-        };
+        // The signed string must be byte-identical to the body prefix.
+        const payload = new URLSearchParams(params).toString();
+        const signature = await account.signTypedData({
+          domain: SIGN_DOMAIN,
+          types: SIGN_TYPES,
+          primaryType: "Message",
+          message: { msg: payload },
+        });
 
         const response = await http.request({
           method: "POST",
-          url: this.BASE_URL + "/fapi/v1/order",
-          params,
-          headers,
+          url: this.BASE_URL + "/fapi/v3/order",
+          data: `${payload}&signature=${signature}`,
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
         });
 
         const orderName = {
@@ -117,17 +151,38 @@ class AsterDex extends Exchange {
 
       return responses;
     } catch (error) {
-      const message = _.get(
-        error,
-        "response.data.msg",
-        "Failed to place order"
-      );
+      const message =
+        _.get(error, "response.data.msg") ||
+        _.get(error, "message") ||
+        "Failed to place order";
 
       addToast({
         type: "error",
         message,
       });
     }
+  }
+
+  getApiWalletAccount() {
+    const secret = _.trim(this.secret);
+
+    if (!/^(0x)?[0-9a-fA-F]{64}$/.test(secret)) {
+      return null;
+    }
+
+    let account;
+
+    try {
+      account = privateKeyToAccount(
+        secret.startsWith("0x") ? secret : `0x${secret}`
+      );
+    } catch {
+      return null;
+    }
+
+    return _.toLower(_.trim(this.apiKey)) === _.toLower(account.address)
+      ? account
+      : null;
   }
 
   async getServerTime() {
@@ -142,10 +197,13 @@ class AsterDex extends Exchange {
 
     const response = await http.request({
       method: "GET",
-      url: this.BASE_URL + "/fapi/v1/time",
+      url: this.BASE_URL + "/fapi/v3/time",
     });
 
     const serverTime = _.get(response, "data.serverTime");
+    if (!_.isFinite(serverTime)) {
+      throw new Error("Aster did not return a server time.");
+    }
     this._serverTimeOffset = serverTime - Date.now();
     this._serverTimeSyncedAt = Date.now();
 
@@ -155,7 +213,7 @@ class AsterDex extends Exchange {
   async getAllTradingPairs() {
     const response = await http.request({
       method: "GET",
-      url: this.BASE_URL + "/fapi/v1/exchangeInfo",
+      url: this.BASE_URL + "/fapi/v3/exchangeInfo",
     });
 
     return _(response)
@@ -192,27 +250,6 @@ class AsterDex extends Exchange {
 
   buildClientOrderId(orderType, orderGroupId = this.createOrderGroupId()) {
     return `${CLIENT_ORDER_ID_PREFIX}_${orderType}_${orderGroupId}`.slice(0, 36);
-  }
-
-  /**
-   * Generates a HMAC SHA256 signature for Aster DEX API.
-   * @param {Object} params The parameters to sign.
-   * @returns {string} The signature.
-   */
-  generateSignature(params) {
-    const keys = Object.keys(params);
-    const queryParams = [];
-
-    for (const key of keys) {
-      queryParams.push(`${key}=${params[key]}`);
-    }
-
-    const queryString = queryParams.join("&");
-    const signature = CryptoJS.HmacSHA256(queryString, this.secret).toString(
-      CryptoJS.enc.Hex
-    );
-
-    return signature;
   }
 
   getLastPrice(pair, callback) {
