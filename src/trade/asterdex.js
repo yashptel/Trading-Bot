@@ -257,6 +257,9 @@ class AsterDex extends Exchange {
     const ws = new WebSocket(socketAddress);
     pair = _.toLower(pair);
 
+    let hasPrice = false;
+    let isClosed = false;
+
     let isLoading = 0;
     const setIsLoading = (value) => {
       if (!value && isLoading === 0) {
@@ -270,6 +273,30 @@ class AsterDex extends Exchange {
     };
 
     setIsLoading(true);
+
+    // aggTrade only fires on trades; a quiet pair's last trade can be days
+    // old, so seed from the REST ticker clamped into the live book.
+    const symbol = _.toUpper(pair);
+    Promise.all([
+      fetch(`${this.BASE_URL}/fapi/v3/ticker/price?symbol=${symbol}`),
+      fetch(`${this.BASE_URL}/fapi/v3/ticker/bookTicker?symbol=${symbol}`),
+    ])
+      .then((responses) => Promise.all(responses.map((r) => r.json())))
+      .then(([ticker, book]) => {
+        const last = _.toNumber(_.get(ticker, "price"));
+        const bid = _.toNumber(_.get(book, "bidPrice"));
+        const ask = _.toNumber(_.get(book, "askPrice"));
+        const seed = _.clamp(last, bid, ask);
+
+        if (bid > 0 && ask >= bid && seed > 0 && !hasPrice && !isClosed) {
+          setIsLoading(false);
+          callback(seed);
+        }
+      })
+      .catch((error) => {
+        console.error("Ticker price error:", error);
+      });
+
     ws.onopen = () => {
       console.log("Connected to Aster DEX.");
       ws.send(
@@ -286,6 +313,7 @@ class AsterDex extends Exchange {
       const price = _.get(data, "p", -1);
 
       if (price !== -1) {
+        hasPrice = true;
         setIsLoading(false);
         callback(price);
       }
@@ -306,6 +334,7 @@ class AsterDex extends Exchange {
     };
 
     return () => {
+      isClosed = true;
       setIsLoading(false);
       ws.close();
     };
